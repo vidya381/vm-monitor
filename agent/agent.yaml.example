@@ -1,0 +1,33 @@
+vm:
+  name: "oracle-amd-vm1"
+  port: 9000
+  control_plane_url: "https://api.vmmonitor.yourdomain.com"
+  auth_token: "change-me-openssl-rand-hex-32"
+  labels:
+    - "production"
+    - "oracle-free-tier"
+
+apps:
+  - name: "spendo"
+    type: "systemd"
+    service: "spendo.service"
+    env_file: "/opt/spendo/.env"
+    health_check:
+      type: "http"
+      url: "http://localhost:3000/health"
+
+  - name: "weather-insight"
+    type: "systemd"
+    service: "weather.service"
+    env_file: "/opt/weather/.env"
+    health_check:
+      type: "http"
+      url: "http://localhost:8080/api/health"
+
+  - name: "badminton-bot"
+    type: "systemd"
+    service: "badminton-bot.service"
+    env_file: "/opt/badminton-bot/.env"
+    health_check:
+      type: "command"
+      cmd: "pgrep -f badminton-bot"

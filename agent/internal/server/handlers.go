@@ -1,0 +1,142 @@
+package server
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/vidya381/vm-monitor/agent/internal/config"
+	agentenv "github.com/vidya381/vm-monitor/agent/internal/env"
+	"github.com/vidya381/vm-monitor/agent/internal/systemd"
+)
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
+	type appResponse struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Type    string `json:"type"`
+		Status  string `json:"status"`
+	}
+
+	apps := make([]appResponse, 0, len(s.cfg.Apps))
+	for _, app := range s.cfg.Apps {
+		status := systemd.AppStatus(app.Service)
+		apps = append(apps, appResponse{
+			ID:     app.Name,
+			Name:   app.Name,
+			Type:   app.Type,
+			Status: string(status),
+		})
+	}
+	writeJSON(w, http.StatusOK, apps)
+}
+
+func (s *Server) handleAppStatus(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+	status := systemd.AppStatus(app.Service)
+	writeJSON(w, http.StatusOK, map[string]string{"status": string(status)})
+}
+
+func (s *Server) handleAppLogs(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+
+	tail := 200
+	if t := r.URL.Query().Get("tail"); t != "" {
+		if n, err := strconv.Atoi(t); err == nil && n > 0 {
+			tail = n
+		}
+	}
+	cursor := r.URL.Query().Get("cursor")
+
+	result, err := systemd.Logs(app.Service, tail, cursor)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleGetEnv(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+	if app.EnvFile == "" {
+		writeJSON(w, http.StatusOK, map[string]agentenv.EnvVar{})
+		return
+	}
+
+	vars, err := agentenv.Parse(app.EnvFile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, vars)
+}
+
+func (s *Server) handlePutEnv(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+
+	var vars map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&vars); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := agentenv.Write(app.EnvFile, vars); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if r.URL.Query().Get("restart") == "true" {
+		if err := systemd.Restart(app.Service); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+	if err := systemd.Restart(app.Service); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) findApp(w http.ResponseWriter, r *http.Request) (*config.AppConfig, bool) {
+	id := chi.URLParam(r, "id")
+	for i := range s.cfg.Apps {
+		if s.cfg.Apps[i].Name == id {
+			return &s.cfg.Apps[i], true
+		}
+	}
+	http.Error(w, "app not found", http.StatusNotFound)
+	return nil, false
+}

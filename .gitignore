@@ -1,0 +1,21 @@
+# Project documentation files
+project-planning/
+
+# Go
+go.work.sum
+*.env
+.env.*
+!.env.example
+!agent.yaml.example
+
+# Next.js
+dashboard/.next/
+dashboard/node_modules/
+dashboard/.env.local
+
+# Binaries
+agent/bin/
+api/bin/
+
+# OS
+.DS_Store
