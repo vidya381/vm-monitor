@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/vidya381/vm-monitor/agent/internal/config"
 	agentenv "github.com/vidya381/vm-monitor/agent/internal/env"
+	"github.com/vidya381/vm-monitor/agent/internal/health"
 	"github.com/vidya381/vm-monitor/agent/internal/systemd"
 )
 
@@ -23,20 +24,19 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	type appResponse struct {
-		ID      string `json:"id"`
-		Name    string `json:"name"`
-		Type    string `json:"type"`
-		Status  string `json:"status"`
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		Type   string `json:"type"`
+		Status string `json:"status"`
 	}
 
 	apps := make([]appResponse, 0, len(s.cfg.Apps))
 	for _, app := range s.cfg.Apps {
-		status := systemd.AppStatus(app.Service)
 		apps = append(apps, appResponse{
 			ID:     app.Name,
 			Name:   app.Name,
 			Type:   app.Type,
-			Status: string(status),
+			Status: string(appStatus(&app)),
 		})
 	}
 	writeJSON(w, http.StatusOK, apps)
@@ -47,8 +47,20 @@ func (s *Server) handleAppStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	status := systemd.AppStatus(app.Service)
-	writeJSON(w, http.StatusOK, map[string]string{"status": string(status)})
+
+	type statusResponse struct {
+		Status      string        `json:"status"`
+		HealthCheck health.Result `json:"health_check"`
+	}
+
+	svcStatus := systemd.AppStatus(app.Service)
+	hc := health.Check(app.HealthCheck)
+
+	writeJSON(w, http.StatusOK, statusResponse{
+		Status:      string(appStatus(app)),
+		HealthCheck: hc,
+	})
+	_ = svcStatus
 }
 
 func (s *Server) handleAppLogs(w http.ResponseWriter, r *http.Request) {
@@ -139,4 +151,21 @@ func (s *Server) findApp(w http.ResponseWriter, r *http.Request) (*config.AppCon
 	}
 	http.Error(w, "app not found", http.StatusNotFound)
 	return nil, false
+}
+
+// appStatus returns the combined systemd + health check status for an app.
+// Running  = service active AND health check passes (or no health check)
+// Unhealthy = service active but health check fails
+// Stopped   = service not active
+func appStatus(app *config.AppConfig) systemd.Status {
+	svcStatus := systemd.AppStatus(app.Service)
+	if svcStatus != systemd.StatusRunning {
+		return svcStatus
+	}
+	if app.HealthCheck.Type != "" {
+		if !health.Check(app.HealthCheck).Healthy {
+			return systemd.StatusUnhealthy
+		}
+	}
+	return systemd.StatusRunning
 }

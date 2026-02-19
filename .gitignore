@@ -13,6 +13,9 @@ dashboard/.next/
 dashboard/node_modules/
 dashboard/.env.local
 
+# Docs (committed at project end)
+docs/
+
 # Binaries
 agent/bin/
 api/bin/
