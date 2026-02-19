@@ -4,15 +4,23 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/vidya381/vm-monitor/api/internal/agentclient"
+	"github.com/vidya381/vm-monitor/api/internal/db"
 )
 
 type Handler struct {
-	db *pgxpool.Pool
+	vms    *db.VMStore
+	apps   *db.AppStore
+	audit  *db.AuditStore
+	agent  *agentclient.Client
 }
 
-func New(db *pgxpool.Pool) *Handler {
-	return &Handler{db: db}
+func New(vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, agent *agentclient.Client) *Handler {
+	return &Handler{vms: vms, apps: apps, audit: audit, agent: agent}
+}
+
+func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -21,21 +29,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
-func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
 }
-
-// VM handlers — stubs to be implemented in M3
-func (h *Handler) RegisterVM(w http.ResponseWriter, r *http.Request)  {}
-func (h *Handler) ListVMs(w http.ResponseWriter, r *http.Request)     {}
-func (h *Handler) GetVM(w http.ResponseWriter, r *http.Request)       {}
-
-// App handlers — stubs to be implemented in M3
-func (h *Handler) ListApps(w http.ResponseWriter, r *http.Request)    {}
-func (h *Handler) GetApp(w http.ResponseWriter, r *http.Request)      {}
-func (h *Handler) GetAppLogs(w http.ResponseWriter, r *http.Request)  {}
-func (h *Handler) GetAppEnv(w http.ResponseWriter, r *http.Request)   {}
-func (h *Handler) PutAppEnv(w http.ResponseWriter, r *http.Request)   {}
-func (h *Handler) RestartApp(w http.ResponseWriter, r *http.Request)  {}
-func (h *Handler) GetAppAudit(w http.ResponseWriter, r *http.Request) {}
-func (h *Handler) ListAudit(w http.ResponseWriter, r *http.Request)   {}
