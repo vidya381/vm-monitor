@@ -2,19 +2,20 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-interface LogViewerProps {
-  appId: string;
-}
-
-export function LogViewer({ appId }: LogViewerProps) {
+export function LogViewer({ appId }: { appId: string }) {
   const [lines, setLines] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [paused, setPaused] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
   const cursorRef = useRef<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
+  pausedRef.current = paused;
 
   const fetchLogs = useCallback(async (initial = false) => {
+    if (!initial && pausedRef.current) return;
     try {
       const qs = new URLSearchParams();
       if (initial) {
@@ -40,10 +41,9 @@ export function LogViewer({ appId }: LogViewerProps) {
     }
   }, [appId]);
 
-  // Auto-scroll to bottom when new lines arrive
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [lines]);
+    if (autoScroll) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [lines, autoScroll]);
 
   useEffect(() => {
     fetchLogs(true);
@@ -57,36 +57,52 @@ export function LogViewer({ appId }: LogViewerProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <input
-        type="text"
-        placeholder="Search logs…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
+      <div className="flex items-center gap-3">
+        <input
+          type="text"
+          placeholder="filter by content..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 bg-background border border-border hover:border-border-subtle focus:border-accent rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled outline-none transition-colors font-mono"
+        />
+        <button
+          onClick={() => setPaused((p) => !p)}
+          className="flex items-center gap-2 bg-transparent hover:bg-surface-raised text-text-secondary hover:text-text-primary border border-border text-sm font-medium px-4 py-2 rounded-md transition-colors"
+        >
+          {paused && <span className="h-1.5 w-1.5 rounded-full bg-warning" />}
+          {paused ? "Paused" : "Pause refresh"}
+        </button>
+      </div>
 
-      <div className="h-[480px] overflow-y-auto rounded-md border border-border bg-zinc-950 p-4 font-mono text-xs text-zinc-100">
-        {loading && (
-          <p className="text-zinc-400">Loading logs…</p>
-        )}
-        {error && (
-          <p className="text-red-400">Error: {error}</p>
-        )}
-        {!loading && filtered.length === 0 && (
-          <p className="text-zinc-500">{search ? "No matching lines." : "No logs yet."}</p>
+      <div className="bg-background border border-border rounded-lg font-mono text-xs text-text-secondary h-96 overflow-y-auto p-4 space-y-0.5">
+        {loading && <p className="text-text-muted">Loading logs...</p>}
+        {error && <p className="text-status-stopped">Cannot load logs. Check agent connection.</p>}
+        {!loading && !error && filtered.length === 0 && (
+          <p className="text-text-muted">{search ? "No matching lines." : "No logs available."}</p>
         )}
         {filtered.map((line, i) => (
-          <div key={i} className="leading-5 whitespace-pre-wrap break-all">
-            {line}
+          <div key={i} className="flex gap-4 hover:bg-surface-raised px-1 rounded">
+            <span className="text-text-disabled w-8 shrink-0 select-none text-right">{i + 1}</span>
+            <span className="break-all">{line}</span>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {lines.length} lines · polls every 5s
-        {search && ` · ${filtered.length} matching`}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-text-muted">
+          {lines.length} lines{search && ` · ${filtered.length} matching`}
+        </p>
+        <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={autoScroll}
+            onChange={(e) => setAutoScroll(e.target.checked)}
+            className="accent-accent"
+          />
+          Auto-scroll
+        </label>
+      </div>
     </div>
   );
 }

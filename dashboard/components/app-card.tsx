@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppStatusBadge } from "@/components/status-badge";
 import { App } from "@/lib/types";
 
@@ -17,21 +16,17 @@ function timeAgo(iso?: string) {
 export function AppCard({ app }: { app: App }) {
   return (
     <Link href={`/apps/${app.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-        <CardHeader className="pb-2">
-          <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-base font-semibold">{app.name}</CardTitle>
-            <AppStatusBadge status={app.last_status} />
-          </div>
-          <p className="text-sm text-muted-foreground">{app.vm_name}</p>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="uppercase tracking-wide font-medium">{app.type}</span>
-            <span>checked {timeAgo(app.last_checked_at)}</span>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-surface border border-border rounded-lg p-4 hover:border-border-subtle hover:bg-surface-raised transition-colors cursor-pointer">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <p className="text-base font-semibold text-text-primary">{app.name}</p>
+          <AppStatusBadge status={app.last_status} />
+        </div>
+        <p className="text-sm text-text-secondary mb-4">{app.vm_name}</p>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-text-muted">{app.type}</span>
+          <span className="text-xs text-text-muted">checked {timeAgo(app.last_checked_at)}</span>
+        </div>
+      </div>
     </Link>
   );
 }

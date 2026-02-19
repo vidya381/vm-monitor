@@ -1,33 +1,33 @@
-import { Badge } from "@/components/ui/badge";
 import { AppStatus, VMStatus } from "@/lib/types";
 
-const appStatusConfig: Record<string, { label: string; className: string }> = {
-  running:   { label: "Running",   className: "bg-green-100 text-green-800 border-green-200" },
-  stopped:   { label: "Stopped",   className: "bg-zinc-100 text-zinc-600 border-zinc-200" },
-  unhealthy: { label: "Unhealthy", className: "bg-red-100 text-red-800 border-red-200" },
+const appStatusConfig: Record<string, { dot: string; label: string; pulse: boolean }> = {
+  running:   { dot: "bg-status-running",   label: "Running",   pulse: true  },
+  stopped:   { dot: "bg-status-stopped",   label: "Stopped",   pulse: false },
+  unhealthy: { dot: "bg-status-unhealthy", label: "Unhealthy", pulse: false },
 };
 
-const vmStatusConfig: Record<string, { label: string; className: string }> = {
-  online:      { label: "Online",      className: "bg-green-100 text-green-800 border-green-200" },
-  unreachable: { label: "Unreachable", className: "bg-red-100 text-red-800 border-red-200" },
-  unknown:     { label: "Unknown",     className: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+const vmStatusConfig: Record<string, { dot: string; label: string }> = {
+  online:      { dot: "bg-status-running",  label: "Online"      },
+  unreachable: { dot: "bg-status-stopped",  label: "Unreachable" },
+  unknown:     { dot: "bg-status-unknown",  label: "Unknown"     },
 };
 
 export function AppStatusBadge({ status }: { status: AppStatus }) {
-  const cfg = appStatusConfig[status] ?? { label: status || "Unknown", className: "bg-zinc-100 text-zinc-500 border-zinc-200" };
+  const cfg = appStatusConfig[status] ?? { dot: "bg-status-unknown", label: status || "Unknown", pulse: false };
   return (
-    <Badge variant="outline" className={cfg.className}>
-      <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current" />
-      {cfg.label}
-    </Badge>
+    <span className="flex items-center gap-1.5">
+      <span className={`h-2 w-2 rounded-full ${cfg.dot}${cfg.pulse ? " animate-pulse" : ""}`} />
+      <span className="text-xs text-text-muted">{cfg.label}</span>
+    </span>
   );
 }
 
 export function VMStatusBadge({ status }: { status: VMStatus }) {
   const cfg = vmStatusConfig[status] ?? vmStatusConfig.unknown;
   return (
-    <Badge variant="outline" className={cfg.className}>
-      {cfg.label}
-    </Badge>
+    <span className="flex items-center gap-1.5">
+      <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
+      <span className="text-xs text-text-muted">{cfg.label}</span>
+    </span>
   );
 }
