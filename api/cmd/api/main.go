@@ -5,13 +5,16 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
+	"github.com/vidya381/vm-monitor/api/internal/agentclient"
 	"github.com/vidya381/vm-monitor/api/internal/db"
 	"github.com/vidya381/vm-monitor/api/internal/handler"
 	apimw "github.com/vidya381/vm-monitor/api/internal/middleware"
+	"github.com/vidya381/vm-monitor/api/internal/poller"
 )
 
 func main() {
@@ -20,6 +23,7 @@ func main() {
 	allowedOrigins := mustEnv("ALLOWED_ORIGINS")
 
 	ctx := context.Background()
+
 	pool, err := db.Connect(ctx, dsn)
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
@@ -27,7 +31,19 @@ func main() {
 	}
 	defer pool.Close()
 
-	h := handler.New(pool)
+	if err := db.RunMigrations(ctx, pool); err != nil {
+		slog.Error("migrations failed", "error", err)
+		os.Exit(1)
+	}
+
+	vms := db.NewVMStore(pool)
+	apps := db.NewAppStore(pool)
+	audit := db.NewAuditStore(pool)
+	agent := agentclient.New()
+
+	h := handler.New(vms, apps, audit, agent)
+
+	poller.Start(ctx, vms, apps, agent, 30*time.Second)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{allowedOrigins},
@@ -36,14 +52,12 @@ func main() {
 	})
 
 	r := chi.NewRouter()
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RealIP)
+	r.Use(chimw.Recoverer)
+	r.Use(chimw.RealIP)
 	r.Use(c.Handler)
 
-	// Public
 	r.Get("/health", h.Health)
 
-	// Protected
 	r.Group(func(r chi.Router) {
 		r.Use(apimw.APIKey(apiKey))
 
