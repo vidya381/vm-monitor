@@ -32,9 +32,9 @@ export default function OverviewPage() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-32 rounded-lg border border-border bg-muted animate-pulse" />
+          <div key={i} className="h-32 rounded-lg border border-border bg-surface animate-pulse" />
         ))}
       </div>
     );
@@ -44,31 +44,32 @@ export default function OverviewPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Apps</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-semibold text-text-primary">Apps</h1>
+          <p className="text-sm text-text-secondary">
             {apps.length} app{apps.length !== 1 ? "s" : ""} across all VMs
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          refreshed {lastRefresh.toLocaleTimeString()}
+        <p className="text-xs text-text-muted">
+          Checked {lastRefresh.toLocaleTimeString()}
         </p>
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          Could not reach control plane: {error}
+        <div className="flex items-center gap-3 bg-surface border border-danger/30 rounded-lg px-4 py-3 text-sm text-text-primary">
+          <span className="h-2 w-2 rounded-full bg-danger shrink-0" />
+          Cannot reach control plane. Check connection.
         </div>
       )}
 
       {apps.length === 0 && !error ? (
-        <div className="rounded-lg border border-dashed border-border p-12 text-center">
-          <p className="text-muted-foreground">No apps registered yet.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Install the agent on a VM to get started.
+        <div className="rounded-lg border border-border p-12 text-center">
+          <p className="text-text-muted">No apps registered on this VM yet.</p>
+          <p className="mt-1 text-sm text-text-muted">
+            No VMs connected. Install the agent to get started.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {apps.map((app) => (
             <AppCard key={app.id} app={app} />
           ))}

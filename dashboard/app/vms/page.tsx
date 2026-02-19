@@ -26,24 +26,24 @@ export default function VMsPage() {
   }, []);
 
   if (loading) {
-    return <div className="h-48 rounded-lg border border-border bg-muted animate-pulse" />;
+    return <div className="h-48 rounded-lg border border-border bg-surface animate-pulse" />;
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Virtual Machines</h1>
+      <h1 className="text-xl font-semibold text-text-primary">Virtual Machines</h1>
 
       {vms.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-12 text-center">
-          <p className="text-muted-foreground">No VMs registered yet.</p>
+        <div className="rounded-lg border border-border p-12 text-center">
+          <p className="text-text-muted">No VMs connected. Install the agent to get started.</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border divide-y divide-border">
           {vms.map((vm) => (
-            <div key={vm.id} className="flex items-center justify-between px-4 py-3">
+            <div key={vm.id} className="flex items-center justify-between px-4 py-3 hover:bg-surface-raised transition-colors">
               <div>
-                <p className="font-medium text-sm">{vm.name}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm font-semibold text-text-primary">{vm.name}</p>
+                <p className="text-xs text-text-muted">
                   heartbeat {timeAgo(vm.last_heartbeat)}
                   {vm.labels?.length > 0 && ` · ${vm.labels.join(", ")}`}
                 </p>
