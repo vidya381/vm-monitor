@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useState } from "react";
-import { useEffect } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import { AppStatusBadge } from "@/components/status-badge";
 import { LogViewer } from "@/components/log-viewer";
+import { EnvTab } from "@/components/env-tab";
+import { AuditTab } from "@/components/audit-tab";
 import { App } from "@/lib/types";
 
 function timeAgo(iso?: string) {
@@ -17,7 +18,7 @@ function timeAgo(iso?: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-const tabs = ["Status", "Logs"] as const;
+const tabs = ["Status", "Logs", "Environment", "Audit"] as const;
 type Tab = (typeof tabs)[number];
 
 export default function AppDetailPage({
@@ -30,8 +31,11 @@ export default function AppDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("Status");
+  const [restarting, setRestarting] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState(false);
+  const [restartMsg, setRestartMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
+  const fetchApp = useCallback(() => {
     fetch(`/api/apps/${id}`)
       .then((r) => {
         if (!r.ok) throw new Error(`status ${r.status}`);
@@ -40,6 +44,26 @@ export default function AppDetailPage({
       .then((data) => { setApp(data); setLoading(false); })
       .catch((e) => { setError(String(e)); setLoading(false); });
   }, [id]);
+
+  useEffect(() => { fetchApp(); }, [fetchApp]);
+
+  async function handleRestart() {
+    setConfirmRestart(false);
+    setRestarting(true);
+    setRestartMsg(null);
+    try {
+      const res = await fetch(`/api/apps/${id}/restart`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `status ${res.status}`);
+      setRestartMsg({ type: "success", text: `${app?.name} restarted successfully.` });
+      setTimeout(fetchApp, 2000);
+    } catch {
+      setRestartMsg({ type: "error", text: `Cannot restart ${app?.name}. Check agent connection.` });
+    } finally {
+      setRestarting(false);
+      setTimeout(() => setRestartMsg(null), 4000);
+    }
+  }
 
   if (loading) {
     return <div className="h-48 rounded-lg border border-border bg-surface animate-pulse" />;
@@ -56,6 +80,7 @@ export default function AppDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">{app.name}</h1>
@@ -83,19 +108,74 @@ export default function AppDetailPage({
         </div>
       </div>
 
-      <div className="pt-0">
+      <div>
         {activeTab === "Status" && (
-          <div className="rounded-lg border border-border divide-y divide-border">
-            <Row label="App name" value={app.name} />
-            <Row label="VM" value={app.vm_name} />
-            <Row label="Type" value={app.type} />
-            <Row label="Environment" value={app.environment || "—"} />
-            <Row label="Status" value={<AppStatusBadge status={app.last_status} />} />
-            <Row label="Last checked" value={timeAgo(app.last_checked_at)} />
-            <Row label="Last restarted" value={timeAgo(app.last_restarted_at)} />
+          <div className="space-y-4">
+            {/* Restart toast */}
+            {restartMsg && (
+              <div
+                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-text-primary border ${
+                  restartMsg.type === "success"
+                    ? "bg-surface border-status-running/30"
+                    : "bg-surface border-danger/30"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full shrink-0 ${
+                    restartMsg.type === "success" ? "bg-status-running" : "bg-danger"
+                  }`}
+                />
+                {restartMsg.text}
+              </div>
+            )}
+
+            <div className="rounded-lg border border-border divide-y divide-border">
+              <Row label="App name" value={app.name} />
+              <Row label="VM" value={app.vm_name} />
+              <Row label="Type" value={app.type} />
+              <Row label="Environment" value={app.environment || "—"} />
+              <Row label="Status" value={<AppStatusBadge status={app.last_status} />} />
+              <Row label="Last checked" value={timeAgo(app.last_checked_at)} />
+              <Row label="Last restarted" value={timeAgo(app.last_restarted_at)} />
+            </div>
+
+            {/* Restart action */}
+            <div className="flex items-center gap-3">
+              {confirmRestart ? (
+                <>
+                  <span className="text-sm text-text-secondary">
+                    Restart {app.name}? This will briefly interrupt the service.
+                  </span>
+                  <button
+                    onClick={handleRestart}
+                    disabled={restarting}
+                    className="bg-transparent hover:bg-danger-subtle text-danger border border-danger/30 hover:border-danger/60 text-sm font-medium px-4 py-2 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setConfirmRestart(false)}
+                    className="bg-transparent hover:bg-surface-raised text-text-secondary hover:text-text-primary border border-border text-sm font-medium px-4 py-2 rounded-md transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmRestart(true)}
+                  disabled={restarting}
+                  className="bg-transparent hover:bg-danger-subtle text-danger border border-danger/30 hover:border-danger/60 text-sm font-medium px-4 py-2 rounded-md transition-colors disabled:opacity-50"
+                >
+                  {restarting ? "Restarting..." : "Restart App"}
+                </button>
+              )}
+            </div>
           </div>
         )}
+
         {activeTab === "Logs" && <LogViewer appId={id} />}
+        {activeTab === "Environment" && <EnvTab appId={id} />}
+        {activeTab === "Audit" && <AuditTab appId={id} />}
       </div>
     </div>
   );

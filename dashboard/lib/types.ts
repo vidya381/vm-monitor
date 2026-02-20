@@ -28,3 +28,18 @@ export interface LogResult {
   cursor: string;
   has_more: boolean;
 }
+
+export interface EnvEntry {
+  value: string;
+  masked: boolean;
+}
+
+export type EnvMap = Record<string, EnvEntry>;
+
+export interface AuditLog {
+  id: number;
+  app_id: string | null;
+  action: string;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
