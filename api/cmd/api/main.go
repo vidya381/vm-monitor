@@ -17,6 +17,12 @@ import (
 	"github.com/vidya381/vm-monitor/api/internal/poller"
 )
 
+// rateLimitWindow is the window size for the per-IP rate limiter.
+const rateLimitWindow = time.Minute
+
+// rateLimitPerIP is the max requests per IP per rateLimitWindow.
+const rateLimitPerIP = 120
+
 func main() {
 	dsn := mustEnv("DATABASE_URL")
 	apiKey := mustEnv("API_KEY")
@@ -55,6 +61,9 @@ func main() {
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.RealIP)
 	r.Use(c.Handler)
+	r.Use(apimw.SecurityHeaders)
+	r.Use(apimw.BodyLimit)
+	r.Use(apimw.RateLimit(rateLimitPerIP, rateLimitWindow))
 
 	r.Get("/health", h.Health)
 
