@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -109,13 +110,27 @@ func (s *Server) handlePutEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var vars map[string]string
-	if err := json.NewDecoder(r.Body).Decode(&vars); err != nil {
+	var updates map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if err := agentenv.Write(app.EnvFile, vars); err != nil {
+	// Read existing env and merge updates on top so unedited keys (especially
+	// masked secrets) are preserved in the file even if not included in the PUT.
+	current, err := agentenv.ParseRaw(app.EnvFile)
+	if err != nil && !os.IsNotExist(err) {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if current == nil {
+		current = make(map[string]string)
+	}
+	for k, v := range updates {
+		current[k] = v
+	}
+
+	if err := agentenv.Write(app.EnvFile, current); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

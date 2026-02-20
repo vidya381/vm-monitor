@@ -34,6 +34,33 @@ func TokensMatch(incoming, expected string) bool {
 	return subtle.ConstantTimeCompare([]byte(incoming), []byte(expected)) == 1
 }
 
+// ParseRaw reads an .env file and returns all key=value pairs without masking.
+// Used internally by PUT /env to merge new values on top of existing ones.
+func ParseRaw(path string) (map[string]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening env file: %w", err)
+	}
+	defer f.Close()
+
+	result := make(map[string]string)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.Trim(strings.TrimSpace(value), `"'`)
+		result[key] = value
+	}
+	return result, scanner.Err()
+}
+
 // Parse reads an .env file and returns a map of key → EnvVar.
 // Sensitive values are replaced with "••••••••".
 func Parse(path string) (map[string]EnvVar, error) {
