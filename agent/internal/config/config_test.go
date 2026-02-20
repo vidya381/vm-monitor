@@ -101,6 +101,56 @@ apps: []
 	}
 }
 
+func TestLoad_DockerApp(t *testing.T) {
+	path := writeTemp(t, `
+vm:
+  name: "test-vm"
+  control_plane_url: "http://localhost:8080"
+  auth_token: "secret"
+apps:
+  - name: "mycontainer"
+    type: "docker"
+    container: "my-app"
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Apps[0].Container != "my-app" {
+		t.Errorf("container = %q, want %q", cfg.Apps[0].Container, "my-app")
+	}
+}
+
+func TestLoad_SystemdMissingService(t *testing.T) {
+	path := writeTemp(t, `
+vm:
+  name: "test-vm"
+  control_plane_url: "http://localhost:8080"
+  auth_token: "secret"
+apps:
+  - name: "myapp"
+    type: "systemd"
+`)
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected error for systemd app missing service, got nil")
+	}
+}
+
+func TestLoad_DockerMissingContainer(t *testing.T) {
+	path := writeTemp(t, `
+vm:
+  name: "test-vm"
+  control_plane_url: "http://localhost:8080"
+  auth_token: "secret"
+apps:
+  - name: "myapp"
+    type: "docker"
+`)
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected error for docker app missing container, got nil")
+	}
+}
+
 func TestLoad_InvalidAppType(t *testing.T) {
 	path := writeTemp(t, `
 vm:
