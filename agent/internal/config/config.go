@@ -21,8 +21,9 @@ type VMConfig struct {
 
 type AppConfig struct {
 	Name        string      `mapstructure:"name"`
-	Type        string      `mapstructure:"type"` // "systemd", "docker"
-	Service     string      `mapstructure:"service"`
+	Type        string      `mapstructure:"type"`      // "systemd", "docker"
+	Service     string      `mapstructure:"service"`   // systemd only
+	Container   string      `mapstructure:"container"` // docker only
 	EnvFile     string      `mapstructure:"env_file"`
 	HealthCheck HealthCheck `mapstructure:"health_check"`
 }
@@ -68,7 +69,16 @@ func validate(cfg *Config) error {
 		if app.Name == "" {
 			return fmt.Errorf("apps[%d].name is required", i)
 		}
-		if app.Type != "systemd" && app.Type != "docker" {
+		switch app.Type {
+		case "systemd":
+			if app.Service == "" {
+				return fmt.Errorf("apps[%d].service is required for type 'systemd'", i)
+			}
+		case "docker":
+			if app.Container == "" {
+				return fmt.Errorf("apps[%d].container is required for type 'docker'", i)
+			}
+		default:
 			return fmt.Errorf("apps[%d].type must be 'systemd' or 'docker', got %q", i, app.Type)
 		}
 	}
