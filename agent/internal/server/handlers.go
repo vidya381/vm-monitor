@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vidya381/vm-monitor/agent/internal/config"
+	"github.com/vidya381/vm-monitor/agent/internal/docker"
 	agentenv "github.com/vidya381/vm-monitor/agent/internal/env"
 	"github.com/vidya381/vm-monitor/agent/internal/health"
 	"github.com/vidya381/vm-monitor/agent/internal/systemd"
@@ -78,7 +79,13 @@ func (s *Server) handleAppLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	cursor := r.URL.Query().Get("cursor")
 
-	result, err := systemd.Logs(app.Service, tail, cursor)
+	var result *systemd.LogResult
+	var err error
+	if app.Type == "docker" {
+		result, err = docker.Logs(app.Container, tail, cursor)
+	} else {
+		result, err = systemd.Logs(app.Service, tail, cursor)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -150,7 +157,13 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := systemd.Restart(app.Service); err != nil {
+	var err error
+	if app.Type == "docker" {
+		err = docker.Restart(app.Container)
+	} else {
+		err = systemd.Restart(app.Service)
+	}
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -168,14 +181,20 @@ func (s *Server) findApp(w http.ResponseWriter, r *http.Request) (*config.AppCon
 	return nil, false
 }
 
-// appStatus returns the combined systemd + health check status for an app.
-// Running  = service active AND health check passes (or no health check)
-// Unhealthy = service active but health check fails
-// Stopped   = service not active
+// appStatus returns the combined status for an app (systemd or docker) plus
+// the result of an optional health check.
+// Running   = process active AND health check passes (or no health check)
+// Unhealthy = process active but health check fails
+// Stopped   = process not active
 func appStatus(app *config.AppConfig) systemd.Status {
-	svcStatus := systemd.AppStatus(app.Service)
-	if svcStatus != systemd.StatusRunning {
-		return svcStatus
+	var base systemd.Status
+	if app.Type == "docker" {
+		base = docker.AppStatus(app.Container)
+	} else {
+		base = systemd.AppStatus(app.Service)
+	}
+	if base != systemd.StatusRunning {
+		return base
 	}
 	if app.HealthCheck.Type != "" {
 		if !health.Check(app.HealthCheck).Healthy {
