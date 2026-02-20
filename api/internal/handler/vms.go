@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -19,6 +20,18 @@ func (h *Handler) RegisterVM(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Name == "" || req.Address == "" || req.AuthToken == "" {
 		writeError(w, http.StatusBadRequest, "name, address, and auth_token are required")
+		return
+	}
+	if len(req.Name) > 255 {
+		writeError(w, http.StatusBadRequest, "name must be 255 characters or fewer")
+		return
+	}
+	if len(req.AuthToken) < 16 {
+		writeError(w, http.StatusBadRequest, "auth_token must be at least 16 characters")
+		return
+	}
+	if u, err := url.Parse(req.Address); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		writeError(w, http.StatusBadRequest, "address must be a valid http/https URL")
 		return
 	}
 
