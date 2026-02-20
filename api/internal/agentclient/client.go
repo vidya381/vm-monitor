@@ -37,12 +37,14 @@ func (c *Client) GetApps(address, token string) ([]AgentApp, error) {
 }
 
 // ProxyRequest forwards a request from the control plane to an agent and writes
-// the agent's response directly to w. Used for logs, env, and restart endpoints.
-func (c *Client) ProxyRequest(w http.ResponseWriter, r *http.Request, agentURL, token string) {
+// the agent's response directly to w. Returns the agent's HTTP status code so
+// callers can decide whether to perform post-action work (e.g. audit logging).
+// Returns 0 if the request could not be sent at all.
+func (c *Client) ProxyRequest(w http.ResponseWriter, r *http.Request, agentURL, token string) int {
 	req, err := http.NewRequestWithContext(r.Context(), r.Method, agentURL, r.Body)
 	if err != nil {
 		http.Error(w, "failed to build proxy request", http.StatusInternalServerError)
-		return
+		return 0
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", r.Header.Get("Content-Type"))
@@ -51,7 +53,7 @@ func (c *Client) ProxyRequest(w http.ResponseWriter, r *http.Request, agentURL, 
 	resp, err := c.http.Do(req)
 	if err != nil {
 		http.Error(w, "agent unreachable", http.StatusBadGateway)
-		return
+		return 0
 	}
 	defer resp.Body.Close()
 
@@ -61,6 +63,7 @@ func (c *Client) ProxyRequest(w http.ResponseWriter, r *http.Request, agentURL, 
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
 	w.Write(buf.Bytes())
+	return resp.StatusCode
 }
 
 func (c *Client) get(url, token string, out any) error {

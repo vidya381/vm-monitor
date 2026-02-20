@@ -71,12 +71,14 @@ func (h *Handler) PutAppEnv(w http.ResponseWriter, r *http.Request) {
 	encoded, _ := json.Marshal(newVars)
 	r2, _ := http.NewRequestWithContext(r.Context(), http.MethodPut, agentURL, bytes.NewReader(encoded))
 	r2.URL.RawQuery = r.URL.RawQuery
-	h.agent.ProxyRequest(w, r2, agentURL, app.VMAuthToken)
+	status := h.agent.ProxyRequest(w, r2, agentURL, app.VMAuthToken)
 
-	h.audit.Create(r.Context(), app.ID, "env_update", map[string]any{
-		"keys_updated": len(newVars),
-		"restart":      r.URL.Query().Get("restart") == "true",
-	})
+	if status >= 200 && status < 300 {
+		h.audit.Create(r.Context(), app.ID, "env_update", map[string]any{
+			"keys_updated": len(newVars),
+			"restart":      r.URL.Query().Get("restart") == "true",
+		})
+	}
 }
 
 func (h *Handler) RestartApp(w http.ResponseWriter, r *http.Request) {
@@ -86,10 +88,12 @@ func (h *Handler) RestartApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	agentURL := fmt.Sprintf("%s/apps/%s/restart", app.VMAddress, app.Name)
-	h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
+	status := h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
 
-	h.apps.UpdateLastRestarted(r.Context(), app.ID, time.Now())
-	h.audit.Create(r.Context(), app.ID, "restart", nil)
+	if status >= 200 && status < 300 {
+		h.apps.UpdateLastRestarted(r.Context(), app.ID, time.Now())
+		h.audit.Create(r.Context(), app.ID, "restart", nil)
+	}
 }
 
 func (h *Handler) GetAppAudit(w http.ResponseWriter, r *http.Request) {
