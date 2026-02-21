@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,12 +12,10 @@ import (
 )
 
 func main() {
-	cfgPath := "/etc/vm-monitor/agent.yaml"
-	if len(os.Args) > 1 {
-		cfgPath = os.Args[1]
-	}
+	cfgPath := flag.String("config", "/etc/vm-monitor/agent.yaml", "path to agent.yaml")
+	flag.Parse()
 
-	cfg, err := config.Load(cfgPath)
+	cfg, err := config.Load(*cfgPath)
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
