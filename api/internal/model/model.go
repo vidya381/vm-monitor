@@ -36,7 +36,8 @@ type App struct {
 }
 
 type AppConfig struct {
-	Service     string      `json:"service"`
+	Service     string      `json:"service,omitempty"`
+	Container   string      `json:"container,omitempty"`
 	EnvFile     string      `json:"env_file,omitempty"`
 	HealthCheck HealthCheck `json:"health_check,omitempty"`
 }

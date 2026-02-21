@@ -12,18 +12,21 @@ type Config struct {
 }
 
 type VMConfig struct {
-	Name            string   `mapstructure:"name"`
-	Port            int      `mapstructure:"port"`
-	ControlPlaneURL string   `mapstructure:"control_plane_url"`
-	AuthToken       string   `mapstructure:"auth_token"`
-	Labels          []string `mapstructure:"labels"`
+	Name                string   `mapstructure:"name"`
+	Port                int      `mapstructure:"port"`
+	Address             string   `mapstructure:"address"`               // how control plane reaches this agent
+	ControlPlaneURL     string   `mapstructure:"control_plane_url"`
+	ControlPlaneAPIKey  string   `mapstructure:"control_plane_api_key"` // API key for authenticating to control plane
+	AuthToken           string   `mapstructure:"auth_token"`
+	Labels              []string `mapstructure:"labels"`
 }
 
 type AppConfig struct {
 	Name        string      `mapstructure:"name"`
-	Type        string      `mapstructure:"type"`      // "systemd", "docker"
-	Service     string      `mapstructure:"service"`   // systemd only
-	Container   string      `mapstructure:"container"` // docker only
+	Type        string      `mapstructure:"type"`        // "systemd", "docker"
+	Service     string      `mapstructure:"service"`     // systemd only
+	Container   string      `mapstructure:"container"`   // docker only
+	Environment string      `mapstructure:"environment"` // optional label, e.g. "production"
 	EnvFile     string      `mapstructure:"env_file"`
 	HealthCheck HealthCheck `mapstructure:"health_check"`
 }
@@ -62,8 +65,14 @@ func validate(cfg *Config) error {
 	if cfg.VM.ControlPlaneURL == "" {
 		return fmt.Errorf("vm.control_plane_url is required")
 	}
+	if cfg.VM.ControlPlaneAPIKey == "" {
+		return fmt.Errorf("vm.control_plane_api_key is required")
+	}
 	if cfg.VM.Port == 0 {
 		cfg.VM.Port = 9000
+	}
+	if cfg.VM.Address == "" {
+		cfg.VM.Address = fmt.Sprintf("http://localhost:%d", cfg.VM.Port)
 	}
 	for i, app := range cfg.Apps {
 		if app.Name == "" {

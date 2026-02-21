@@ -24,6 +24,7 @@ vm:
   name: "test-vm"
   port: 9000
   control_plane_url: "http://localhost:8080"
+  control_plane_api_key: "myapikey"
   auth_token: "secret"
   labels:
     - "production"
@@ -65,6 +66,7 @@ func TestLoad_DefaultPort(t *testing.T) {
 vm:
   name: "test-vm"
   control_plane_url: "http://localhost:8080"
+  control_plane_api_key: "myapikey"
   auth_token: "secret"
 apps: []
 `)
@@ -106,6 +108,7 @@ func TestLoad_DockerApp(t *testing.T) {
 vm:
   name: "test-vm"
   control_plane_url: "http://localhost:8080"
+  control_plane_api_key: "myapikey"
   auth_token: "secret"
 apps:
   - name: "mycontainer"
@@ -164,6 +167,38 @@ apps:
 `)
 	if _, err := Load(path); err == nil {
 		t.Fatal("expected error for invalid app type, got nil")
+	}
+}
+
+func TestLoad_MissingControlPlaneAPIKey(t *testing.T) {
+	path := writeTemp(t, `
+vm:
+  name: "test-vm"
+  control_plane_url: "http://localhost:8080"
+  auth_token: "secret"
+apps: []
+`)
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected error for missing control_plane_api_key, got nil")
+	}
+}
+
+func TestLoad_DefaultAddress(t *testing.T) {
+	path := writeTemp(t, `
+vm:
+  name: "test-vm"
+  port: 9000
+  control_plane_url: "http://localhost:8080"
+  control_plane_api_key: "myapikey"
+  auth_token: "secret"
+apps: []
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.VM.Address != "http://localhost:9000" {
+		t.Errorf("address = %q, want %q", cfg.VM.Address, "http://localhost:9000")
 	}
 }
 
