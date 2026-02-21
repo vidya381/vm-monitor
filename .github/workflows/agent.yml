@@ -1,0 +1,36 @@
+name: Agent CI
+
+on:
+  push:
+    paths:
+      - "agent/**"
+      - ".github/workflows/agent.yml"
+  pull_request:
+    paths:
+      - "agent/**"
+      - ".github/workflows/agent.yml"
+
+jobs:
+  test:
+    name: Vet, Test, Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: agent/go.mod
+          cache-dependency-path: agent/go.sum
+
+      - name: Vet
+        run: go vet ./...
+        working-directory: agent
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+        working-directory: agent
+
+      - name: Build
+        run: go build -o /dev/null ./cmd/agent
+        working-directory: agent
