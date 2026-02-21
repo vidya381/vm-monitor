@@ -1,0 +1,36 @@
+name: API CI
+
+on:
+  push:
+    paths:
+      - "api/**"
+      - ".github/workflows/api.yml"
+  pull_request:
+    paths:
+      - "api/**"
+      - ".github/workflows/api.yml"
+
+jobs:
+  test:
+    name: Vet, Test, Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+
+      - name: Vet
+        run: go vet ./...
+        working-directory: api
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+        working-directory: api
+
+      - name: Build
+        run: go build -o /dev/null ./cmd/api
+        working-directory: api
