@@ -53,7 +53,7 @@ func main() {
 
 	h := handler.New(vms, apps, audit, agent)
 
-	poller.Start(ctx, vms, apps, agent, notifier, 30*time.Second)
+	poller.Start(ctx, vms, apps, audit, agent, notifier, 30*time.Second)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{allowedOrigins},
