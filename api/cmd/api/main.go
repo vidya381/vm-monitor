@@ -85,7 +85,11 @@ func main() {
 		r.Get("/audit", h.ListAudit)
 	})
 
-	addr := ":8080"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	addr := ":" + port
 	slog.Info("starting vm-monitor api", "addr", addr)
 	if err := http.ListenAndServe(addr, r); err != nil {
 		slog.Error("server error", "error", err)
