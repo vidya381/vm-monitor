@@ -60,7 +60,7 @@ export function EnvTab({ appId }: Props) {
   function enterEditMode() {
     const initial: Record<string, string> = {};
     for (const [k, v] of Object.entries(env)) {
-      if (!v.masked) initial[k] = v.value;
+      initial[k] = v.masked ? "" : v.value;
     }
     setEdits(initial);
     setEditMode(true);
@@ -73,8 +73,8 @@ export function EnvTab({ appId }: Props) {
     setShowDiff(false);
   }
 
-  const changedKeys = Object.keys(edits).filter(
-    (k) => edits[k] !== env[k]?.value
+  const changedKeys = Object.keys(edits).filter((k) =>
+    env[k]?.masked ? edits[k] !== "" : edits[k] !== env[k]?.value
   );
 
   async function save(restart: boolean) {
@@ -85,9 +85,15 @@ export function EnvTab({ appId }: Props) {
     setSaving(true);
     try {
       const fileParam = selectedFile ? `&file=${encodeURIComponent(selectedFile)}` : "";
+      // exclude masked fields left blank (user didn't change them)
+      const payload: Record<string, string> = {};
+      for (const k of Object.keys(edits)) {
+        if (env[k]?.masked && edits[k] === "") continue;
+        payload[k] = edits[k];
+      }
       const res = await fetch(
         `/api/apps/${appId}/env?restart=${restart}${fileParam}`,
-        { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(edits) }
+        { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `status ${res.status}`);
@@ -181,10 +187,10 @@ export function EnvTab({ appId }: Props) {
                 changedKeys.map((k) => (
                   <div key={k}>
                     <div className="font-mono text-xs bg-danger-subtle border-l-2 border-status-stopped px-3 py-1 text-text-secondary">
-                      - {k}={env[k]?.value ?? ""}
+                      - {k}={env[k]?.masked ? "••••••••" : env[k]?.value ?? ""}
                     </div>
                     <div className="font-mono text-xs bg-status-running-bg border-l-2 border-status-running px-3 py-1 text-text-secondary">
-                      + {k}={edits[k]}
+                      + {k}={env[k]?.masked ? "••••••••" : edits[k]}
                     </div>
                   </div>
                 ))
@@ -277,9 +283,11 @@ export function EnvTab({ appId }: Props) {
                 <span className="font-mono text-sm text-text-primary w-56 shrink-0">
                   {key}
                 </span>
-                {editMode && !entry.masked ? (
+                {editMode ? (
                   <input
+                    type={entry.masked ? "password" : "text"}
                     value={edits[key] ?? ""}
+                    placeholder={entry.masked ? "leave blank to keep current" : undefined}
                     onChange={(e) => setEdits((p) => ({ ...p, [key]: e.target.value }))}
                     className="flex-1 bg-background border border-border hover:border-border-subtle focus:border-accent rounded-md px-3 py-1 text-sm text-text-primary outline-none transition-colors font-mono"
                   />
@@ -305,9 +313,6 @@ export function EnvTab({ appId }: Props) {
                   >
                     {isRevealed ? "hide" : "reveal"}
                   </button>
-                )}
-                {entry.masked && editMode && (
-                  <span className="text-xs text-text-disabled ml-3">masked</span>
                 )}
               </div>
             );
