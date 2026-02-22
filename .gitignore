@@ -16,6 +16,9 @@ dashboard/.env.local
 # Docs (committed at project end)
 docs/
 
+# Agent local config (contains secrets)
+agent/agent.yaml
+
 # Binaries
 agent/bin/
 api/bin/
