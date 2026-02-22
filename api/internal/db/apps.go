@@ -94,6 +94,34 @@ func (s *AppStore) Upsert(ctx context.Context, vmID uuid.UUID, input model.AppIn
 	return err
 }
 
+// GetByVMAndName returns an app by its VM ID and name.
+func (s *AppStore) GetByVMAndName(ctx context.Context, vmID uuid.UUID, name string) (*model.App, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT a.id, a.vm_id, v.name, v.address, v.auth_token,
+		       a.name, a.type, a.environment, a.config,
+		       a.last_status, a.last_checked_at, a.last_restarted_at, a.created_at
+		FROM apps a
+		JOIN vms v ON v.id = a.vm_id
+		WHERE a.vm_id = $1 AND a.name = $2
+	`, pgtype.UUID{Bytes: vmID, Valid: true}, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, ErrNotFound
+	}
+	app, err := scanApp(rows)
+	if err != nil {
+		return nil, err
+	}
+	return &app, nil
+}
+
 // UpdateStatus sets last_status and last_checked_at for an app found by (vm_id, app name).
 func (s *AppStore) UpdateStatus(ctx context.Context, vmID uuid.UUID, appName, status string, checkedAt time.Time) error {
 	_, err := s.pool.Exec(ctx, `

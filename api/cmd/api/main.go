@@ -14,6 +14,7 @@ import (
 	"github.com/vidya381/vm-monitor/api/internal/db"
 	"github.com/vidya381/vm-monitor/api/internal/handler"
 	apimw "github.com/vidya381/vm-monitor/api/internal/middleware"
+	"github.com/vidya381/vm-monitor/api/internal/notify"
 	"github.com/vidya381/vm-monitor/api/internal/poller"
 )
 
@@ -27,6 +28,8 @@ func main() {
 	dsn := mustEnv("DATABASE_URL")
 	apiKey := mustEnv("API_KEY")
 	allowedOrigins := mustEnv("ALLOWED_ORIGINS")
+	notifyURL := os.Getenv("NOTIFY_WEBHOOK_URL")
+	notifyType := os.Getenv("NOTIFY_WEBHOOK_TYPE")
 
 	ctx := context.Background()
 
@@ -46,10 +49,11 @@ func main() {
 	apps := db.NewAppStore(pool)
 	audit := db.NewAuditStore(pool)
 	agent := agentclient.New()
+	notifier := notify.New(notifyURL, notifyType)
 
 	h := handler.New(vms, apps, audit, agent)
 
-	poller.Start(ctx, vms, apps, agent, 30*time.Second)
+	poller.Start(ctx, vms, apps, agent, notifier, 30*time.Second)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{allowedOrigins},
