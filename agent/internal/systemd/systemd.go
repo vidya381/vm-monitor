@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 )
@@ -87,6 +88,34 @@ func Logs(service string, tail int, cursor string) (*LogResult, error) {
 		Cursor:  lastCursor,
 		HasMore: false,
 	}, nil
+}
+
+// StreamLogs starts journalctl -f for a service and returns a ReadCloser that
+// streams new log lines as JSON objects. Closing it kills the subprocess.
+func StreamLogs(service string) (io.ReadCloser, error) {
+	cmd := exec.Command("journalctl", "-u", service, "-f", "-o", "json", "--no-pager")
+	rc, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("pipe: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("starting journalctl: %w", err)
+	}
+	return &cmdReadCloser{ReadCloser: rc, cmd: cmd}, nil
+}
+
+type cmdReadCloser struct {
+	io.ReadCloser
+	cmd *exec.Cmd
+}
+
+func (c *cmdReadCloser) Close() error {
+	err := c.ReadCloser.Close()
+	if c.cmd.Process != nil {
+		c.cmd.Process.Kill()
+	}
+	c.cmd.Wait()
+	return err
 }
 
 // Restart restarts a systemd service.

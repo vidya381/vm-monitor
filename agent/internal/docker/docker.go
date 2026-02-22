@@ -5,6 +5,7 @@ package docker
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 	"time"
@@ -82,6 +83,39 @@ func Logs(container string, tail int, cursor string) (*systemd.LogResult, error)
 		Cursor:  lastCursor,
 		HasMore: false,
 	}, nil
+}
+
+// StreamLogs starts docker logs -f for a container and returns a ReadCloser
+// that streams new log lines. Closing it kills the subprocess.
+func StreamLogs(container string) (io.ReadCloser, error) {
+	cmd := exec.Command("docker", "logs", "-f", "--timestamps", container)
+	pr, pw := io.Pipe()
+	cmd.Stdout = pw
+	cmd.Stderr = pw
+	if err := cmd.Start(); err != nil {
+		pw.Close()
+		pr.Close()
+		return nil, fmt.Errorf("starting docker logs: %w", err)
+	}
+	go func() {
+		cmd.Wait()
+		pw.Close()
+	}()
+	return &cmdReadCloser{ReadCloser: pr, cmd: cmd}, nil
+}
+
+type cmdReadCloser struct {
+	io.ReadCloser
+	cmd *exec.Cmd
+}
+
+func (c *cmdReadCloser) Close() error {
+	err := c.ReadCloser.Close()
+	if c.cmd.Process != nil {
+		c.cmd.Process.Kill()
+	}
+	c.cmd.Wait()
+	return err
 }
 
 // Restart restarts a Docker container.
