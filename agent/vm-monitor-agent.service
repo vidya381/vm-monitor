@@ -1,0 +1,13 @@
+[Unit]
+Description=vm-monitor agent
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/vm-monitor-agent --config /etc/vm-monitor/agent.yaml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

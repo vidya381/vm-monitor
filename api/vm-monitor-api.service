@@ -1,0 +1,14 @@
+[Unit]
+Description=vm-monitor control plane
+After=network.target
+
+[Service]
+Type=simple
+User=vm-monitor
+EnvironmentFile=/etc/vm-monitor/api.env
+ExecStart=/usr/local/bin/vm-monitor-api
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

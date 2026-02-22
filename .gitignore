@@ -19,6 +19,7 @@ docs/
 # Binaries
 agent/bin/
 api/bin/
+dist/
 
 # OS
 .DS_Store
