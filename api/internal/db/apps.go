@@ -122,6 +122,33 @@ func (s *AppStore) GetByVMAndName(ctx context.Context, vmID uuid.UUID, name stri
 	return &app, nil
 }
 
+// GetByVMID returns all apps for a given VM.
+func (s *AppStore) GetByVMID(ctx context.Context, vmID uuid.UUID) ([]model.App, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT a.id, a.vm_id, v.name, v.address, v.auth_token,
+		       a.name, a.type, a.environment, a.config,
+		       a.last_status, a.last_checked_at, a.last_restarted_at, a.created_at
+		FROM apps a
+		JOIN vms v ON v.id = a.vm_id
+		WHERE a.vm_id = $1
+		ORDER BY a.name
+	`, pgtype.UUID{Bytes: vmID, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var apps []model.App
+	for rows.Next() {
+		app, err := scanApp(rows)
+		if err != nil {
+			return nil, err
+		}
+		apps = append(apps, app)
+	}
+	return apps, rows.Err()
+}
+
 // UpdateStatus sets last_status and last_checked_at for an app found by (vm_id, app name).
 func (s *AppStore) UpdateStatus(ctx context.Context, vmID uuid.UUID, appName, status string, checkedAt time.Time) error {
 	_, err := s.pool.Exec(ctx, `

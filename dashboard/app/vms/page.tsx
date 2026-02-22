@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { VMStatusBadge } from "@/components/status-badge";
 import { VM } from "@/lib/types";
 
@@ -40,7 +41,7 @@ export default function VMsPage() {
       ) : (
         <div className="rounded-lg border border-border divide-y divide-border">
           {vms.map((vm) => (
-            <div key={vm.id} className="flex items-center justify-between px-4 py-3 hover:bg-surface-raised transition-colors">
+            <Link key={vm.id} href={`/vms/${vm.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-surface-raised transition-colors">
               <div>
                 <p className="text-sm font-semibold text-text-primary">{vm.name}</p>
                 <p className="text-xs text-text-muted">
@@ -49,7 +50,7 @@ export default function VMsPage() {
                 </p>
               </div>
               <VMStatusBadge status={vm.status} />
-            </div>
+            </Link>
           ))}
         </div>
       )}

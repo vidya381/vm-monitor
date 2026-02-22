@@ -15,7 +15,20 @@ import (
 )
 
 func (h *Handler) ListApps(w http.ResponseWriter, r *http.Request) {
-	apps, err := h.apps.GetAll(r.Context())
+	var apps []model.App
+	var err error
+
+	if vmIDStr := r.URL.Query().Get("vm_id"); vmIDStr != "" {
+		vmID, parseErr := uuid.Parse(vmIDStr)
+		if parseErr != nil {
+			writeError(w, http.StatusBadRequest, "invalid vm_id")
+			return
+		}
+		apps, err = h.apps.GetByVMID(r.Context(), vmID)
+	} else {
+		apps, err = h.apps.GetAll(r.Context())
+	}
+
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list apps")
 		return
