@@ -100,6 +100,10 @@ func (s *Server) handleListEnvFiles(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !app.EnvManaged {
+		writeJSON(w, http.StatusOK, []string{})
+		return
+	}
 	all := app.AllEnvFiles()
 	names := make([]string, len(all))
 	for i, f := range all {
@@ -111,6 +115,10 @@ func (s *Server) handleListEnvFiles(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetEnv(w http.ResponseWriter, r *http.Request) {
 	app, ok := s.findApp(w, r)
 	if !ok {
+		return
+	}
+	if !app.EnvManaged {
+		writeJSON(w, http.StatusOK, map[string]agentenv.EnvVar{})
 		return
 	}
 	path, err := resolveEnvFile(app, r.URL.Query().Get("file"))
@@ -133,6 +141,10 @@ func (s *Server) handleGetEnv(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePutEnv(w http.ResponseWriter, r *http.Request) {
 	app, ok := s.findApp(w, r)
 	if !ok {
+		return
+	}
+	if !app.EnvManaged {
+		http.Error(w, "env management not enabled for this app", http.StatusForbidden)
 		return
 	}
 	path, err := resolveEnvFile(app, r.URL.Query().Get("file"))

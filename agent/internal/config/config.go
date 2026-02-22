@@ -2,6 +2,9 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -27,18 +30,33 @@ type AppConfig struct {
 	Service     string      `mapstructure:"service"`     // systemd only
 	Container   string      `mapstructure:"container"`   // docker only
 	Environment string      `mapstructure:"environment"` // optional label, e.g. "production"
-	EnvFile     string      `mapstructure:"env_file"`    // single env file (backward compat)
+	EnvManaged  bool        `mapstructure:"env_managed"` // opt-in: expose env files via dashboard
+	EnvFile     string      `mapstructure:"env_file"`    // single env file
 	EnvFiles    []string    `mapstructure:"env_files"`   // multiple env files
+	EnvDir      string      `mapstructure:"env_dir"`     // directory to scan for .env* files
 	HealthCheck HealthCheck `mapstructure:"health_check"`
 }
 
-// AllEnvFiles returns all configured env file paths, with env_file first.
+// AllEnvFiles returns all configured env file paths, with env_file first,
+// followed by env_files, then any .env* files found in env_dir.
 func (a *AppConfig) AllEnvFiles() []string {
 	var files []string
 	if a.EnvFile != "" {
 		files = append(files, a.EnvFile)
 	}
 	files = append(files, a.EnvFiles...)
+	if a.EnvDir != "" {
+		entries, _ := os.ReadDir(a.EnvDir)
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if strings.HasPrefix(name, ".env") {
+				files = append(files, filepath.Join(a.EnvDir, name))
+			}
+		}
+	}
 	return files
 }
 
