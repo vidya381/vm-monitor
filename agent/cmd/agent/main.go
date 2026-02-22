@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/vidya381/vm-monitor/agent/internal/config"
 	"github.com/vidya381/vm-monitor/agent/internal/server"
@@ -33,7 +34,8 @@ func main() {
 	addr := fmt.Sprintf("0.0.0.0:%d", cfg.VM.Port)
 
 	if err := register(cfg); err != nil {
-		slog.Warn("failed to register with control plane", "error", err)
+		slog.Warn("failed to register with control plane, will retry in background", "error", err)
+		go retryRegister(cfg)
 	}
 
 	slog.Info("listening", "addr", addr)
@@ -63,6 +65,17 @@ type appConfig struct {
 	Service     string `json:"service,omitempty"`
 	Container   string `json:"container,omitempty"`
 	EnvFile     string `json:"env_file,omitempty"`
+}
+
+func retryRegister(cfg *config.Config) {
+	for attempt := 1; ; attempt++ {
+		time.Sleep(30 * time.Second)
+		if err := register(cfg); err != nil {
+			slog.Warn("registration retry failed", "attempt", attempt, "error", err)
+			continue
+		}
+		return
+	}
 }
 
 func register(cfg *config.Config) error {
