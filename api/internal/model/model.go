@@ -39,6 +39,7 @@ type AppConfig struct {
 	Service     string      `json:"service,omitempty"`
 	Container   string      `json:"container,omitempty"`
 	EnvFile     string      `json:"env_file,omitempty"`
+	AutoRestart bool        `json:"auto_restart,omitempty"`
 	HealthCheck HealthCheck `json:"health_check,omitempty"`
 }
 
