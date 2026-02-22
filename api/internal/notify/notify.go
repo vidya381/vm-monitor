@@ -20,6 +20,7 @@ type Event struct {
 	VMName   string
 	AppName  string
 	Duration time.Duration // how long it was down (only set for recovered)
+	AutoRestarted bool          // true if auto-restart was triggered (only for EventDown)
 }
 
 // Notifier sends notifications when apps go down or recover.
@@ -60,7 +61,11 @@ func (n *Notifier) sendSlack(event Event) error {
 	var text string
 	switch event.Type {
 	case EventDown:
-		text = fmt.Sprintf(":red_circle: *%s / %s* is down", event.VMName, event.AppName)
+		if event.AutoRestarted {
+			text = fmt.Sprintf(":red_circle: *%s / %s* is down — auto-restart triggered", event.VMName, event.AppName)
+		} else {
+			text = fmt.Sprintf(":red_circle: *%s / %s* is down", event.VMName, event.AppName)
+		}
 	case EventRecovered:
 		if event.Duration > 0 {
 			text = fmt.Sprintf(":white_check_mark: *%s / %s* recovered (was down for %s)",
@@ -81,7 +86,11 @@ func (n *Notifier) sendGeneric(event Event) error {
 	switch event.Type {
 	case EventDown:
 		title = fmt.Sprintf("%s / %s is down", event.VMName, event.AppName)
-		body = fmt.Sprintf("App %s on VM %s has stopped or is unhealthy.", event.AppName, event.VMName)
+		if event.AutoRestarted {
+			body = fmt.Sprintf("App %s on VM %s has stopped or is unhealthy. Auto-restart triggered.", event.AppName, event.VMName)
+		} else {
+			body = fmt.Sprintf("App %s on VM %s has stopped or is unhealthy.", event.AppName, event.VMName)
+		}
 	case EventRecovered:
 		title = fmt.Sprintf("%s / %s recovered", event.VMName, event.AppName)
 		if event.Duration > 0 {

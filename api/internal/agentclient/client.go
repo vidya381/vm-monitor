@@ -2,6 +2,7 @@ package agentclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,6 +35,26 @@ func (c *Client) GetApps(address, token string) ([]AgentApp, error) {
 		return nil, err
 	}
 	return apps, nil
+}
+
+// Restart calls POST /apps/{name}/restart on the agent directly (used by the poller).
+func (c *Client) Restart(ctx context.Context, address, token, appName string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, address+"/apps/"+appName+"/restart", nil)
+	if err != nil {
+		return fmt.Errorf("building request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("restarting app: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("agent returned %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // ProxyRequest forwards a request from the control plane to an agent and writes

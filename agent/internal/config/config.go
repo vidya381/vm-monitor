@@ -34,6 +34,7 @@ type AppConfig struct {
 	EnvFile     string      `mapstructure:"env_file"`    // single env file
 	EnvFiles    []string    `mapstructure:"env_files"`   // multiple env files
 	EnvDir      string      `mapstructure:"env_dir"`     // directory to scan for .env* files
+	AutoRestart bool        `mapstructure:"auto_restart"` // opt-in: auto-restart if stopped/unhealthy
 	HealthCheck HealthCheck `mapstructure:"health_check"`
 }
 
