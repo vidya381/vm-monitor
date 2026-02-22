@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -41,6 +42,54 @@ func (h *Handler) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	agentURL := fmt.Sprintf("%s/apps/%s/logs", app.VMAddress, app.Name)
 	h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
+}
+
+func (h *Handler) StreamAppLogs(w http.ResponseWriter, r *http.Request) {
+	app, ok := h.resolveApp(w, r)
+	if !ok {
+		return
+	}
+
+	agentURL := fmt.Sprintf("%s/apps/%s/logs/stream", app.VMAddress, app.Name)
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, agentURL, nil)
+	if err != nil {
+		http.Error(w, "failed to build request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+app.VMAuthToken)
+
+	// Use a client with no timeout — SSE connections are long-lived.
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		http.Error(w, "agent unreachable", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		return
+	}
+
+	buf := make([]byte, 4096)
+	for {
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			w.Write(buf[:n])
+			flusher.Flush()
+		}
+		if err != nil {
+			if err != io.EOF {
+				// client disconnected or agent closed — normal exit
+			}
+			return
+		}
+	}
 }
 
 func (h *Handler) GetAppEnvFiles(w http.ResponseWriter, r *http.Request) {
