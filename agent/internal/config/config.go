@@ -27,8 +27,19 @@ type AppConfig struct {
 	Service     string      `mapstructure:"service"`     // systemd only
 	Container   string      `mapstructure:"container"`   // docker only
 	Environment string      `mapstructure:"environment"` // optional label, e.g. "production"
-	EnvFile     string      `mapstructure:"env_file"`
+	EnvFile     string      `mapstructure:"env_file"`    // single env file (backward compat)
+	EnvFiles    []string    `mapstructure:"env_files"`   // multiple env files
 	HealthCheck HealthCheck `mapstructure:"health_check"`
+}
+
+// AllEnvFiles returns all configured env file paths, with env_file first.
+func (a *AppConfig) AllEnvFiles() []string {
+	var files []string
+	if a.EnvFile != "" {
+		files = append(files, a.EnvFile)
+	}
+	files = append(files, a.EnvFiles...)
+	return files
 }
 
 type HealthCheck struct {

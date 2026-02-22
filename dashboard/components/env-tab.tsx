@@ -10,6 +10,9 @@ interface Props {
 type Toast = { type: "success" | "error"; message: string };
 
 export function EnvTab({ appId }: Props) {
+  const [files, setFiles] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [filesLoaded, setFilesLoaded] = useState(false);
   const [env, setEnv] = useState<EnvMap>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,12 +23,34 @@ export function EnvTab({ appId }: Props) {
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<Toast | null>(null);
 
+  // Load file list on mount
   useEffect(() => {
-    fetch(`/api/apps/${appId}/env`)
+    fetch(`/api/apps/${appId}/env/files`)
+      .then((r) => r.json())
+      .then((data: string[]) => {
+        const list = Array.isArray(data) ? data : [];
+        setFiles(list);
+        setSelectedFile(list[0] ?? null);
+        setFilesLoaded(true);
+      })
+      .catch(() => {
+        setFilesLoaded(true);
+      });
+  }, [appId]);
+
+  // Load env vars when selected file changes (after files are loaded)
+  useEffect(() => {
+    if (!filesLoaded) return;
+    setLoading(true);
+    setEditMode(false);
+    setEdits({});
+    setShowDiff(false);
+    const query = selectedFile ? `?file=${encodeURIComponent(selectedFile)}` : "";
+    fetch(`/api/apps/${appId}/env${query}`)
       .then((r) => r.json())
       .then((data) => { setEnv(data); setLoading(false); })
       .catch((e) => { setError(String(e)); setLoading(false); });
-  }, [appId]);
+  }, [appId, selectedFile, filesLoaded]);
 
   function showToast(type: Toast["type"], message: string) {
     setToast({ type, message });
@@ -33,7 +58,6 @@ export function EnvTab({ appId }: Props) {
   }
 
   function enterEditMode() {
-    // Pre-fill edits with current non-masked values only.
     const initial: Record<string, string> = {};
     for (const [k, v] of Object.entries(env)) {
       if (!v.masked) initial[k] = v.value;
@@ -49,7 +73,6 @@ export function EnvTab({ appId }: Props) {
     setShowDiff(false);
   }
 
-  // Changed non-masked keys compared to original
   const changedKeys = Object.keys(edits).filter(
     (k) => edits[k] !== env[k]?.value
   );
@@ -61,25 +84,23 @@ export function EnvTab({ appId }: Props) {
     }
     setSaving(true);
     try {
-      const body = JSON.stringify(edits);
+      const fileParam = selectedFile ? `&file=${encodeURIComponent(selectedFile)}` : "";
       const res = await fetch(
-        `/api/apps/${appId}/env?restart=${restart}`,
-        { method: "PUT", headers: { "Content-Type": "application/json" }, body }
+        `/api/apps/${appId}/env?restart=${restart}${fileParam}`,
+        { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(edits) }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `status ${res.status}`);
 
-      // Refresh env from server
-      const fresh = await fetch(`/api/apps/${appId}/env`).then((r) => r.json());
+      const freshQuery = selectedFile ? `?file=${encodeURIComponent(selectedFile)}` : "";
+      const fresh = await fetch(`/api/apps/${appId}/env${freshQuery}`).then((r) => r.json());
       setEnv(fresh);
       cancelEdit();
       showToast(
         "success",
-        restart
-          ? "Environment saved. App is restarting."
-          : "Environment variables saved."
+        restart ? "Environment saved. App is restarting." : "Environment variables saved."
       );
-    } catch (e) {
+    } catch {
       showToast("error", "Failed to save environment variables. Original file restored.");
     } finally {
       setSaving(false);
@@ -118,6 +139,25 @@ export function EnvTab({ appId }: Props) {
             }`}
           />
           {toast.message}
+        </div>
+      )}
+
+      {/* File selector — only shown when multiple files are configured */}
+      {files.length > 1 && (
+        <div className="flex gap-1 border-b border-border overflow-x-auto">
+          {files.map((f) => (
+            <button
+              key={f}
+              onClick={() => setSelectedFile(f)}
+              className={`px-3 py-2 text-xs font-mono whitespace-nowrap transition-colors ${
+                selectedFile === f
+                  ? "text-accent border-b-2 border-accent -mb-px"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
         </div>
       )}
 

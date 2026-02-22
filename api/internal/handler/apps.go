@@ -43,6 +43,15 @@ func (h *Handler) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 	h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
 }
 
+func (h *Handler) GetAppEnvFiles(w http.ResponseWriter, r *http.Request) {
+	app, ok := h.resolveApp(w, r)
+	if !ok {
+		return
+	}
+	agentURL := fmt.Sprintf("%s/apps/%s/env/files", app.VMAddress, app.Name)
+	h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
+}
+
 func (h *Handler) GetAppEnv(w http.ResponseWriter, r *http.Request) {
 	app, ok := h.resolveApp(w, r)
 	if !ok {
