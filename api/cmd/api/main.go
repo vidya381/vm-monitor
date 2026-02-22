@@ -77,6 +77,7 @@ func main() {
 		r.Get("/apps", h.ListApps)
 		r.Get("/apps/{id}", h.GetApp)
 		r.Get("/apps/{id}/logs", h.GetAppLogs)
+		r.Get("/apps/{id}/env/files", h.GetAppEnvFiles)
 		r.Get("/apps/{id}/env", h.GetAppEnv)
 		r.Put("/apps/{id}/env", h.PutAppEnv)
 		r.Post("/apps/{id}/restart", h.RestartApp)

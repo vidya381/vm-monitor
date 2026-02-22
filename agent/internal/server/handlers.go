@@ -2,8 +2,10 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -93,17 +95,34 @@ func (s *Server) handleAppLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (s *Server) handleListEnvFiles(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+	all := app.AllEnvFiles()
+	names := make([]string, len(all))
+	for i, f := range all {
+		names[i] = filepath.Base(f)
+	}
+	writeJSON(w, http.StatusOK, names)
+}
+
 func (s *Server) handleGetEnv(w http.ResponseWriter, r *http.Request) {
 	app, ok := s.findApp(w, r)
 	if !ok {
 		return
 	}
-	if app.EnvFile == "" {
+	path, err := resolveEnvFile(app, r.URL.Query().Get("file"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if path == "" {
 		writeJSON(w, http.StatusOK, map[string]agentenv.EnvVar{})
 		return
 	}
-
-	vars, err := agentenv.Parse(app.EnvFile)
+	vars, err := agentenv.Parse(path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -116,6 +135,15 @@ func (s *Server) handlePutEnv(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	path, err := resolveEnvFile(app, r.URL.Query().Get("file"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if path == "" {
+		http.Error(w, "no env file configured", http.StatusBadRequest)
+		return
+	}
 
 	var updates map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
@@ -125,7 +153,7 @@ func (s *Server) handlePutEnv(w http.ResponseWriter, r *http.Request) {
 
 	// Read existing env and merge updates on top so unedited keys (especially
 	// masked secrets) are preserved in the file even if not included in the PUT.
-	current, err := agentenv.ParseRaw(app.EnvFile)
+	current, err := agentenv.ParseRaw(path)
 	if err != nil && !os.IsNotExist(err) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -137,7 +165,7 @@ func (s *Server) handlePutEnv(w http.ResponseWriter, r *http.Request) {
 		current[k] = v
 	}
 
-	if err := agentenv.Write(app.EnvFile, current); err != nil {
+	if err := agentenv.Write(path, current); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -150,6 +178,24 @@ func (s *Server) handlePutEnv(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// resolveEnvFile returns the full path for the requested env file.
+// If fileParam is empty, defaults to the first configured file.
+func resolveEnvFile(app *config.AppConfig, fileParam string) (string, error) {
+	files := app.AllEnvFiles()
+	if len(files) == 0 {
+		return "", nil
+	}
+	if fileParam == "" {
+		return files[0], nil
+	}
+	for _, f := range files {
+		if filepath.Base(f) == fileParam {
+			return f, nil
+		}
+	}
+	return "", fmt.Errorf("env file %q not configured for this app", fileParam)
 }
 
 func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
