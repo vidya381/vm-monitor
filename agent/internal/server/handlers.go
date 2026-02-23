@@ -324,6 +324,15 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, m)
 }
 
+func (s *Server) handleSystemMetrics(w http.ResponseWriter, r *http.Request) {
+	m, err := metrics.ReadSystem()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, m)
+}
+
 func (s *Server) findApp(w http.ResponseWriter, r *http.Request) (*config.AppConfig, bool) {
 	id := chi.URLParam(r, "id")
 	for i := range s.cfg.Apps {

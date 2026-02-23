@@ -68,6 +68,27 @@ func (h *Handler) ListVMs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, vms)
 }
 
+func (h *Handler) GetVMMetrics(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid VM id")
+		return
+	}
+
+	vm, err := h.vms.GetByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "VM not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get VM")
+		return
+	}
+
+	agentURL := vm.Address + "/system/metrics"
+	h.agent.ProxyRequest(w, r, agentURL, vm.AuthToken)
+}
+
 func (h *Handler) GetVM(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

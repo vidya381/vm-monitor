@@ -39,7 +39,22 @@ export type EnvMap = Record<string, EnvEntry>;
 export interface Metrics {
   cpu_percent: number;
   mem_rss_mb: number;
+  vm_peak_mb: number;
   pid: number;
+  sampled_at: string;
+}
+
+export interface SystemMetrics {
+  mem_total_mb: number;
+  mem_used_mb: number;
+  mem_free_mb: number;
+  load_avg_1: number;
+  load_avg_5: number;
+  load_avg_15: number;
+  uptime_seconds: number;
+  disk_total_gb: number;
+  disk_used_gb: number;
+  disk_free_gb: number;
   sampled_at: string;
 }
 
