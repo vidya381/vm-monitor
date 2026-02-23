@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -116,6 +117,19 @@ func (c *cmdReadCloser) Close() error {
 	}
 	c.cmd.Wait()
 	return err
+}
+
+// GetPID returns the main PID of a running systemd service.
+func GetPID(service string) (int, error) {
+	out, err := exec.Command("systemctl", "show", service, "--property=MainPID", "--value").Output()
+	if err != nil {
+		return 0, fmt.Errorf("systemctl show: %w", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil || pid == 0 {
+		return 0, fmt.Errorf("no running PID for service %s", service)
+	}
+	return pid, nil
 }
 
 // Restart restarts a systemd service.
