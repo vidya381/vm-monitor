@@ -1,12 +1,14 @@
 package server
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vidya381/vm-monitor/agent/internal/config"
@@ -208,6 +210,73 @@ func resolveEnvFile(app *config.AppConfig, fileParam string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("env file %q not configured for this app", fileParam)
+}
+
+func (s *Server) handleLogStream(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	var rc interface{ Read([]byte) (int, error); Close() error }
+	var err error
+	if app.Type == "docker" {
+		rc, err = docker.StreamLogs(app.Container)
+	} else {
+		rc, err = systemd.StreamLogs(app.Service)
+	}
+	if err != nil {
+		fmt.Fprintf(w, "data: {\"error\":%q}\n\n", err.Error())
+		flusher.Flush()
+		return
+	}
+	defer rc.Close()
+
+	// Kill the subprocess when the client disconnects.
+	go func() {
+		<-r.Context().Done()
+		rc.Close()
+	}()
+
+	scanner := bufio.NewScanner(rc)
+	for scanner.Scan() {
+		line := extractLogLine(scanner.Bytes(), app.Type)
+		if line == "" {
+			continue
+		}
+		data, _ := json.Marshal(map[string]string{"line": line})
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+	}
+}
+
+// extractLogLine parses a raw log line from journalctl (JSON) or docker (timestamped).
+func extractLogLine(raw []byte, appType string) string {
+	if appType == "docker" {
+		line := string(raw)
+		idx := strings.IndexByte(line, ' ')
+		if idx < 0 {
+			return line
+		}
+		return line[idx+1:]
+	}
+	var entry struct {
+		Message string `json:"MESSAGE"`
+	}
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		return ""
+	}
+	return entry.Message
 }
 
 func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
