@@ -15,6 +15,7 @@ import (
 	"github.com/vidya381/vm-monitor/agent/internal/docker"
 	agentenv "github.com/vidya381/vm-monitor/agent/internal/env"
 	"github.com/vidya381/vm-monitor/agent/internal/health"
+	"github.com/vidya381/vm-monitor/agent/internal/metrics"
 	"github.com/vidya381/vm-monitor/agent/internal/systemd"
 )
 
@@ -295,6 +296,32 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+
+	var pid int
+	var err error
+	if app.Type == "docker" {
+		pid, err = docker.GetPID(app.Container)
+	} else {
+		pid, err = systemd.GetPID(app.Service)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	m, err := metrics.Read(pid)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, m)
 }
 
 func (s *Server) findApp(w http.ResponseWriter, r *http.Request) (*config.AppConfig, bool) {

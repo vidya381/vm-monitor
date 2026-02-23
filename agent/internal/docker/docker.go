@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,6 +117,19 @@ func (c *cmdReadCloser) Close() error {
 	}
 	c.cmd.Wait()
 	return err
+}
+
+// GetPID returns the main PID of a running Docker container.
+func GetPID(container string) (int, error) {
+	out, err := exec.Command("docker", "inspect", "--format", "{{.State.Pid}}", container).Output()
+	if err != nil {
+		return 0, fmt.Errorf("docker inspect: %w", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil || pid == 0 {
+		return 0, fmt.Errorf("no running PID for container %s", container)
+	}
+	return pid, nil
 }
 
 // Restart restarts a Docker container.

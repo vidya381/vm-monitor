@@ -36,6 +36,13 @@ export interface EnvEntry {
 
 export type EnvMap = Record<string, EnvEntry>;
 
+export interface Metrics {
+  cpu_percent: number;
+  mem_rss_mb: number;
+  pid: number;
+  sampled_at: string;
+}
+
 export interface AuditLog {
   id: number;
   app_id: string | null;

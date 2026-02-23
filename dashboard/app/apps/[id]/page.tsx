@@ -5,7 +5,7 @@ import { AppStatusBadge } from "@/components/status-badge";
 import { LogViewer } from "@/components/log-viewer";
 import { EnvTab } from "@/components/env-tab";
 import { AuditTab } from "@/components/audit-tab";
-import { App } from "@/lib/types";
+import { App, Metrics } from "@/lib/types";
 
 function timeAgo(iso?: string) {
   if (!iso) return "never";
@@ -34,6 +34,7 @@ export default function AppDetailPage({
   const [restarting, setRestarting] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
   const [restartMsg, setRestartMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   const fetchApp = useCallback(() => {
     fetch(`/api/apps/${id}`)
@@ -46,6 +47,18 @@ export default function AppDetailPage({
   }, [id]);
 
   useEffect(() => { fetchApp(); }, [fetchApp]);
+
+  useEffect(() => {
+    if (activeTab !== "Status") return;
+    const load = () =>
+      fetch(`/api/apps/${id}/metrics`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => setMetrics(data))
+        .catch(() => setMetrics(null));
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [id, activeTab]);
 
   async function handleRestart() {
     setConfirmRestart(false);
@@ -137,6 +150,9 @@ export default function AppDetailPage({
               <Row label="Status" value={<AppStatusBadge status={app.last_status} />} />
               <Row label="Last checked" value={timeAgo(app.last_checked_at)} />
               <Row label="Last restarted" value={timeAgo(app.last_restarted_at)} />
+              <Row label="CPU" value={metrics ? `${metrics.cpu_percent}%` : "—"} />
+              <Row label="Memory" value={metrics ? `${metrics.mem_rss_mb} MB` : "—"} />
+              <Row label="PID" value={metrics ? String(metrics.pid) : "—"} />
             </div>
 
             {/* Restart action */}
