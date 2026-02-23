@@ -39,6 +39,7 @@ func (s *Server) buildRouter() *chi.Mux {
 	r.Put("/apps/{id}/env", s.handlePutEnv)
 	r.Post("/apps/{id}/restart", s.handleRestart)
 	r.Get("/apps/{id}/metrics", s.handleMetrics)
+	r.Get("/system/metrics", s.handleSystemMetrics)
 
 	return r
 }
