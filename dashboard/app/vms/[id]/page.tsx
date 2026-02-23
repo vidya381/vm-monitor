@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { VMStatusBadge } from "@/components/status-badge";
 import { AppCard } from "@/components/app-card";
-import { VM, App } from "@/lib/types";
+import { VM, App, SystemMetrics } from "@/lib/types";
 
 function timeAgo(iso?: string) {
   if (!iso) return "never";
@@ -18,12 +18,22 @@ function timeAgo(iso?: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function formatUptime(seconds: number) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 export default function VMDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [vm, setVM] = useState<VM | null>(null);
   const [apps, setApps] = useState<App[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sysMetrics, setSysMetrics] = useState<SystemMetrics | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -45,6 +55,17 @@ export default function VMDetailPage({ params }: { params: Promise<{ id: string 
         setError(String(e));
         setLoading(false);
       });
+  }, [id]);
+
+  useEffect(() => {
+    const load = () =>
+      fetch(`/api/vms/${id}/metrics`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => setSysMetrics(data))
+        .catch(() => setSysMetrics(null));
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
   }, [id]);
 
   if (loading) {
@@ -83,6 +104,22 @@ export default function VMDetailPage({ params }: { params: Promise<{ id: string 
         <VMStatusBadge status={vm.status} />
       </div>
 
+      {/* System Metrics */}
+      {sysMetrics && (
+        <div className="rounded-lg border border-border divide-y divide-border">
+          <div className="px-4 py-3">
+            <p className="text-xs font-medium text-text-muted uppercase tracking-wide">System Metrics</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-border">
+            <MetricCell label="Memory Used" value={`${sysMetrics.mem_used_mb} MB`} sub={`of ${sysMetrics.mem_total_mb} MB`} />
+            <MetricCell label="Load Avg" value={String(sysMetrics.load_avg_1)} sub={`5m ${sysMetrics.load_avg_5} · 15m ${sysMetrics.load_avg_15}`} />
+            <MetricCell label="Uptime" value={formatUptime(sysMetrics.uptime_seconds)} />
+            <MetricCell label="Disk Used" value={`${sysMetrics.disk_used_gb} GB`} sub={`of ${sysMetrics.disk_total_gb} GB`} />
+            <MetricCell label="Disk Free" value={`${sysMetrics.disk_free_gb} GB`} />
+          </div>
+        </div>
+      )}
+
       {/* Apps */}
       <div>
         <p className="text-sm text-text-muted mb-3">
@@ -100,6 +137,16 @@ export default function VMDetailPage({ params }: { params: Promise<{ id: string 
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function MetricCell({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="px-4 py-3">
+      <p className="text-xs text-text-muted mb-1">{label}</p>
+      <p className="text-sm font-medium text-text-primary">{value}</p>
+      {sub && <p className="text-xs text-text-muted mt-0.5">{sub}</p>}
     </div>
   );
 }
