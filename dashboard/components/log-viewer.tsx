@@ -9,6 +9,7 @@ export function LogViewer({ appId }: { appId: string }) {
   const [error, setError] = useState("");
   const [paused, setPaused] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [streaming, setStreaming] = useState(false);
   const cursorRef = useRef<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
@@ -46,10 +47,41 @@ export function LogViewer({ appId }: { appId: string }) {
   }, [lines, autoScroll]);
 
   useEffect(() => {
+    // Always load initial 200 lines via HTTP first.
     fetchLogs(true);
-    const interval = setInterval(() => fetchLogs(false), 5000);
-    return () => clearInterval(interval);
-  }, [fetchLogs]);
+
+    // Then try SSE for live updates.
+    const es = new EventSource(`/api/apps/${appId}/logs/stream`);
+    let connected = false;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    es.onopen = () => {
+      connected = true;
+      setStreaming(true);
+    };
+
+    es.onmessage = (e) => {
+      if (pausedRef.current) return;
+      try {
+        const { line } = JSON.parse(e.data);
+        if (line) setLines((prev) => [...prev, line]);
+      } catch {}
+    };
+
+    es.onerror = () => {
+      if (!connected) {
+        // SSE failed to connect — fall back to cursor polling.
+        es.close();
+        setStreaming(false);
+        pollInterval = setInterval(() => fetchLogs(false), 5000);
+      }
+    };
+
+    return () => {
+      es.close();
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [appId, fetchLogs]);
 
   const filtered = search
     ? lines.filter((l) => l.toLowerCase().includes(search.toLowerCase()))
@@ -70,7 +102,7 @@ export function LogViewer({ appId }: { appId: string }) {
           className="flex items-center gap-2 bg-transparent hover:bg-surface-raised text-text-secondary hover:text-text-primary border border-border text-sm font-medium px-4 py-2 rounded-md transition-colors"
         >
           {paused && <span className="h-1.5 w-1.5 rounded-full bg-warning" />}
-          {paused ? "Paused" : "Pause refresh"}
+          {paused ? "Paused" : "Pause"}
         </button>
       </div>
 
@@ -92,6 +124,7 @@ export function LogViewer({ appId }: { appId: string }) {
       <div className="flex items-center justify-between">
         <p className="text-xs text-text-muted">
           {lines.length} lines{search && ` · ${filtered.length} matching`}
+          {streaming && <span className="ml-2 text-status-running">● live</span>}
         </p>
         <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
           <input
