@@ -167,6 +167,15 @@ func (h *Handler) RestartApp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) GetAppMetrics(w http.ResponseWriter, r *http.Request) {
+	app, ok := h.resolveApp(w, r)
+	if !ok {
+		return
+	}
+	agentURL := fmt.Sprintf("%s/apps/%s/metrics", app.VMAddress, app.Name)
+	h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
+}
+
 func (h *Handler) GetAppAudit(w http.ResponseWriter, r *http.Request) {
 	app, ok := h.resolveApp(w, r)
 	if !ok {

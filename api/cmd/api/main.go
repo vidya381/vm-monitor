@@ -87,6 +87,7 @@ func main() {
 		r.Put("/apps/{id}/env", h.PutAppEnv)
 		r.Post("/apps/{id}/restart", h.RestartApp)
 		r.Get("/apps/{id}/audit", h.GetAppAudit)
+		r.Get("/apps/{id}/metrics", h.GetAppMetrics)
 
 		r.Get("/audit", h.ListAudit)
 	})
