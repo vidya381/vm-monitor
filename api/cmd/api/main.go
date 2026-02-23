@@ -77,6 +77,7 @@ func main() {
 		r.Post("/vms/register", h.RegisterVM)
 		r.Get("/vms", h.ListVMs)
 		r.Get("/vms/{id}", h.GetVM)
+		r.Get("/vms/{id}/metrics", h.GetVMMetrics)
 
 		r.Get("/apps", h.ListApps)
 		r.Get("/apps/{id}", h.GetApp)
