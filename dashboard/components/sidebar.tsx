@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutGrid, Monitor, Plus } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutGrid, Monitor, Plus, LogOut } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Apps", icon: LayoutGrid },
@@ -11,6 +11,12 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
 
   return (
     <aside className="w-56 border-r border-border flex flex-col gap-1 p-3 shrink-0">
@@ -49,6 +55,16 @@ export function Sidebar() {
           <Plus size={16} className={pathname === "/apps/new" ? "text-accent" : ""} />
           Register App
         </Link>
+      </div>
+
+      <div className="mt-auto pt-2 border-t border-border">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-text-muted hover:text-text-primary hover:bg-surface-raised transition-colors"
+        >
+          <LogOut size={16} />
+          Sign out
+        </button>
       </div>
     </aside>
   );
