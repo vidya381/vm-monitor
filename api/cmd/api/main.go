@@ -80,6 +80,7 @@ func main() {
 		r.Get("/vms/{id}/metrics", h.GetVMMetrics)
 
 		r.Get("/apps", h.ListApps)
+		r.Post("/apps", h.CreateApp)
 		r.Get("/apps/{id}", h.GetApp)
 		r.Get("/apps/{id}/logs", h.GetAppLogs)
 		r.Get("/apps/{id}/logs/stream", h.StreamAppLogs)
@@ -87,6 +88,7 @@ func main() {
 		r.Get("/apps/{id}/env", h.GetAppEnv)
 		r.Put("/apps/{id}/env", h.PutAppEnv)
 		r.Post("/apps/{id}/restart", h.RestartApp)
+		r.Post("/apps/{id}/deploy", h.DeployApp)
 		r.Get("/apps/{id}/audit", h.GetAppAudit)
 		r.Get("/apps/{id}/metrics", h.GetAppMetrics)
 

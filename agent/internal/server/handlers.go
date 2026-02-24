@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -333,8 +334,86 @@ func (s *Server) handleSystemMetrics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, m)
 }
 
+func (s *Server) handleDeploy(w http.ResponseWriter, r *http.Request) {
+	app, ok := s.findApp(w, r)
+	if !ok {
+		return
+	}
+	if app.DeployDir == "" {
+		http.Error(w, "deploy_dir not configured for this app", http.StatusBadRequest)
+		return
+	}
+
+	gitCmd := exec.CommandContext(r.Context(), "git", "-C", app.DeployDir, "pull")
+	gitOut, gitErr := gitCmd.CombinedOutput()
+	output := string(gitOut)
+
+	if gitErr != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": false,
+			"output":  output,
+			"error":   gitErr.Error(),
+		})
+		return
+	}
+
+	var restartErr error
+	if app.Type == "docker" {
+		restartErr = docker.Restart(app.Container)
+	} else {
+		restartErr = systemd.Restart(app.Service)
+	}
+
+	if restartErr != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"success": false,
+			"output":  output,
+			"error":   "git pull succeeded but restart failed: " + restartErr.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"output":  output,
+	})
+}
+
+func (s *Server) handleAddApp(w http.ResponseWriter, r *http.Request) {
+	var app config.AppConfig
+	if err := json.NewDecoder(r.Body).Decode(&app); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if app.Name == "" || app.Type == "" {
+		http.Error(w, "name and type are required", http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	for _, existing := range s.cfg.Apps {
+		if existing.Name == app.Name {
+			s.mu.Unlock()
+			http.Error(w, "app already exists", http.StatusConflict)
+			return
+		}
+	}
+	s.cfg.Apps = append(s.cfg.Apps, app)
+	s.mu.Unlock()
+
+	if err := config.Save(s.cfgPath, s.cfg); err != nil {
+		// App is live in memory but yaml write failed — log and inform caller.
+		http.Error(w, fmt.Sprintf("app registered in memory but failed to persist config: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, app)
+}
+
 func (s *Server) findApp(w http.ResponseWriter, r *http.Request) (*config.AppConfig, bool) {
 	id := chi.URLParam(r, "id")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	for i := range s.cfg.Apps {
 		if s.cfg.Apps[i].Name == id {
 			return &s.cfg.Apps[i], true

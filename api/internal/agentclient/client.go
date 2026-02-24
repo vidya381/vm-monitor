@@ -57,6 +57,48 @@ func (c *Client) Restart(ctx context.Context, address, token, appName string) er
 	return nil
 }
 
+// agentAppConfig is the flat app config format the agent expects on POST /apps.
+type agentAppConfig struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Service     string `json:"service,omitempty"`
+	Container   string `json:"container,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	DeployDir   string `json:"deploy_dir,omitempty"`
+}
+
+// AddApp registers a new app with the agent (POST /apps).
+func (c *Client) AddApp(ctx context.Context, address, token string, name, appType, service, container, environment, deployDir string) error {
+	payload := agentAppConfig{
+		Name:        name,
+		Type:        appType,
+		Service:     service,
+		Container:   container,
+		Environment: environment,
+		DeployDir:   deployDir,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshaling app: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, address+"/apps", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("building request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("calling agent: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("agent returned %d", resp.StatusCode)
+	}
+	return nil
+}
+
 // ProxyRequest forwards a request from the control plane to an agent and writes
 // the agent's response directly to w. Returns the agent's HTTP status code so
 // callers can decide whether to perform post-action work (e.g. audit logging).

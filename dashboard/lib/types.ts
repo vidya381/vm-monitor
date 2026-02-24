@@ -1,6 +1,14 @@
 export type VMStatus = "online" | "unreachable" | "unknown";
 export type AppStatus = "running" | "stopped" | "unhealthy" | "";
 
+export interface AppConfig {
+  service?: string;
+  container?: string;
+  env_file?: string;
+  auto_restart?: boolean;
+  deploy_dir?: string;
+}
+
 export interface App {
   id: string;
   vm_id: string;
@@ -8,10 +16,17 @@ export interface App {
   name: string;
   type: string;
   environment?: string;
+  config: AppConfig;
   last_status: AppStatus;
   last_checked_at?: string;
   last_restarted_at?: string;
   created_at: string;
+}
+
+export interface DeployResult {
+  success: boolean;
+  output: string;
+  error?: string;
 }
 
 export interface VM {

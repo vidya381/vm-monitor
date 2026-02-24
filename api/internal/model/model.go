@@ -40,7 +40,17 @@ type AppConfig struct {
 	Container   string      `json:"container,omitempty"`
 	EnvFile     string      `json:"env_file,omitempty"`
 	AutoRestart bool        `json:"auto_restart,omitempty"`
+	DeployDir   string      `json:"deploy_dir,omitempty"`
 	HealthCheck HealthCheck `json:"health_check,omitempty"`
+}
+
+// CreateAppRequest is the payload for dashboard-initiated app registration.
+type CreateAppRequest struct {
+	VMID        string    `json:"vm_id"`
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Environment string    `json:"environment,omitempty"`
+	Config      AppConfig `json:"config"`
 }
 
 type HealthCheck struct {
