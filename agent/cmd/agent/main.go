@@ -30,7 +30,7 @@ func main() {
 		"apps", len(cfg.Apps),
 	)
 
-	srv := server.New(cfg)
+	srv := server.New(cfg, *cfgPath)
 	addr := fmt.Sprintf("0.0.0.0:%d", cfg.VM.Port)
 
 	if err := register(cfg); err != nil {
@@ -62,9 +62,10 @@ type appInput struct {
 }
 
 type appConfig struct {
-	Service     string `json:"service,omitempty"`
-	Container   string `json:"container,omitempty"`
-	EnvFile     string `json:"env_file,omitempty"`
+	Service   string `json:"service,omitempty"`
+	Container string `json:"container,omitempty"`
+	EnvFile   string `json:"env_file,omitempty"`
+	DeployDir string `json:"deploy_dir,omitempty"`
 }
 
 func retryRegister(cfg *config.Config) {
@@ -89,6 +90,7 @@ func register(cfg *config.Config) error {
 				Service:   a.Service,
 				Container: a.Container,
 				EnvFile:   a.EnvFile,
+				DeployDir: a.DeployDir,
 			},
 		}
 	}

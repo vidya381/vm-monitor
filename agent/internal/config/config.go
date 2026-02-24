@@ -7,35 +7,37 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v3"
 )
 
 type Config struct {
-	VM   VMConfig    `mapstructure:"vm"`
-	Apps []AppConfig `mapstructure:"apps"`
+	VM   VMConfig    `mapstructure:"vm"   yaml:"vm"`
+	Apps []AppConfig `mapstructure:"apps" yaml:"apps"`
 }
 
 type VMConfig struct {
-	Name                string   `mapstructure:"name"`
-	Port                int      `mapstructure:"port"`
-	Address             string   `mapstructure:"address"`               // how control plane reaches this agent
-	ControlPlaneURL     string   `mapstructure:"control_plane_url"`
-	ControlPlaneAPIKey  string   `mapstructure:"control_plane_api_key"` // API key for authenticating to control plane
-	AuthToken           string   `mapstructure:"auth_token"`
-	Labels              []string `mapstructure:"labels"`
+	Name               string   `mapstructure:"name"                  yaml:"name"`
+	Port               int      `mapstructure:"port"                  yaml:"port,omitempty"`
+	Address            string   `mapstructure:"address"               yaml:"address,omitempty"`
+	ControlPlaneURL    string   `mapstructure:"control_plane_url"     yaml:"control_plane_url"`
+	ControlPlaneAPIKey string   `mapstructure:"control_plane_api_key" yaml:"control_plane_api_key"`
+	AuthToken          string   `mapstructure:"auth_token"            yaml:"auth_token"`
+	Labels             []string `mapstructure:"labels"                yaml:"labels,omitempty"`
 }
 
 type AppConfig struct {
-	Name        string      `mapstructure:"name"`
-	Type        string      `mapstructure:"type"`        // "systemd", "docker"
-	Service     string      `mapstructure:"service"`     // systemd only
-	Container   string      `mapstructure:"container"`   // docker only
-	Environment string      `mapstructure:"environment"` // optional label, e.g. "production"
-	EnvManaged  bool        `mapstructure:"env_managed"` // opt-in: expose env files via dashboard
-	EnvFile     string      `mapstructure:"env_file"`    // single env file
-	EnvFiles    []string    `mapstructure:"env_files"`   // multiple env files
-	EnvDir      string      `mapstructure:"env_dir"`     // directory to scan for .env* files
-	AutoRestart bool        `mapstructure:"auto_restart"` // opt-in: auto-restart if stopped/unhealthy
-	HealthCheck HealthCheck `mapstructure:"health_check"`
+	Name        string      `mapstructure:"name"         yaml:"name"`
+	Type        string      `mapstructure:"type"         yaml:"type"`
+	Service     string      `mapstructure:"service"      yaml:"service,omitempty"`
+	Container   string      `mapstructure:"container"    yaml:"container,omitempty"`
+	Environment string      `mapstructure:"environment"  yaml:"environment,omitempty"`
+	EnvManaged  bool        `mapstructure:"env_managed"  yaml:"env_managed,omitempty"`
+	EnvFile     string      `mapstructure:"env_file"     yaml:"env_file,omitempty"`
+	EnvFiles    []string    `mapstructure:"env_files"    yaml:"env_files,omitempty"`
+	EnvDir      string      `mapstructure:"env_dir"      yaml:"env_dir,omitempty"`
+	AutoRestart bool        `mapstructure:"auto_restart" yaml:"auto_restart,omitempty"`
+	DeployDir   string      `mapstructure:"deploy_dir"   yaml:"deploy_dir,omitempty"`
+	HealthCheck HealthCheck `mapstructure:"health_check" yaml:"health_check,omitempty"`
 }
 
 // AllEnvFiles returns all configured env file paths, with env_file first,
@@ -62,9 +64,9 @@ func (a *AppConfig) AllEnvFiles() []string {
 }
 
 type HealthCheck struct {
-	Type string `mapstructure:"type"` // "http", "command"
-	URL  string `mapstructure:"url"`
-	Cmd  string `mapstructure:"cmd"`
+	Type string `mapstructure:"type" yaml:"type,omitempty"`
+	URL  string `mapstructure:"url"  yaml:"url,omitempty"`
+	Cmd  string `mapstructure:"cmd"  yaml:"cmd,omitempty"`
 }
 
 func Load(path string) (*Config, error) {
@@ -83,6 +85,15 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// Save writes the config back to disk as YAML.
+func Save(path string, cfg *Config) error {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshaling config: %w", err)
+	}
+	return os.WriteFile(path, data, 0600)
 }
 
 func validate(cfg *Config) error {
