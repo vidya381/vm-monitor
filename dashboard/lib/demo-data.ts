@@ -59,19 +59,6 @@ export const demoApps = [
     created_at: daysAgo(30),
   },
   {
-    id: "demo-app-3",
-    vm_id: "demo-vm-1",
-    vm_name: "oracle-amd1",
-    name: "badminton-bot",
-    type: "systemd",
-    environment: "production",
-    config: { service: "badminton-bot.service", deploy_dir: "/home/ubuntu/badminton-reservation", auto_restart: true },
-    last_status: "running",
-    last_checked_at: minsAgo(1),
-    last_restarted_at: null,
-    created_at: daysAgo(30),
-  },
-  {
     id: "demo-app-4",
     vm_id: "demo-vm-2",
     vm_name: "oracle-amd2",
@@ -105,17 +92,10 @@ export const demoLogs: Record<string, string[]> = {
     `${minsAgo(5)} INFO  GET /api/weather 200 8ms`,
     `${minsAgo(2)} INFO  GET /api/forecast 200 12ms`,
   ],
-  "demo-app-3": [
-    `${now()} INFO  badminton bot started`,
-    `${minsAgo(30)} INFO  checking court availability`,
-    `${minsAgo(30)} INFO  no slots found for today`,
-    `${minsAgo(5)} INFO  scheduler tick`,
-    `${minsAgo(5)} INFO  next check in 25m`,
-  ],
   "demo-app-4": [
     `${now()} INFO  starting vm-monitor api addr=:9090`,
-    `${minsAgo(2)} INFO  registered agent oracle-amd1 apps=3`,
-    `${minsAgo(1)} INFO  poll cycle completed vms=2 apps=4`,
+    `${minsAgo(2)} INFO  registered agent oracle-amd1 apps=2`,
+    `${minsAgo(1)} INFO  poll cycle completed vms=2 apps=3`,
     `${minsAgo(0)} INFO  GET /health 200`,
   ],
 };
@@ -125,7 +105,6 @@ export const demoLogs: Record<string, string[]> = {
 export const demoMetrics: Record<string, object> = {
   "demo-app-1": { cpu_percent: 0.4, mem_rss_mb: 38.2, vm_peak_mb: 52.1, pid: 1234, sampled_at: now() },
   "demo-app-2": { cpu_percent: 0.1, mem_rss_mb: 124.6, vm_peak_mb: 148.3, pid: 1891, sampled_at: now() },
-  "demo-app-3": { cpu_percent: 0.0, mem_rss_mb: 18.4, vm_peak_mb: 22.7, pid: 2047, sampled_at: now() },
   "demo-app-4": { cpu_percent: 0.2, mem_rss_mb: 41.1, vm_peak_mb: 55.8, pid: 892, sampled_at: now() },
 };
 
@@ -150,7 +129,6 @@ export const demoSystemMetrics: Record<string, object> = {
 
 export const demoEnvFiles: Record<string, string[]> = {
   "demo-app-1": [".env"],
-  "demo-app-3": [".env"],
 };
 
 export const demoEnvVars: Record<string, object> = {
@@ -160,11 +138,6 @@ export const demoEnvVars: Record<string, object> = {
     LOG_LEVEL:    { value: "info",       masked: false },
     DATABASE_URL: { value: "••••••••",   masked: true  },
     JWT_SECRET:   { value: "••••••••",   masked: true  },
-  },
-  "demo-app-3": {
-    TELEGRAM_TOKEN:  { value: "••••••••", masked: true  },
-    COURT_IDS:       { value: "1,2,3",   masked: false },
-    CHECK_INTERVAL:  { value: "1800",    masked: false },
   },
 };
 
@@ -181,7 +154,6 @@ export const demoAudit: Record<string, object[]> = {
     { id: 6, app_id: "demo-app-2", action: "deploy",  created_at: daysAgo(7),  details: { output: "Updating abc123..def456\nFast-forward\n 2 files changed" } },
     { id: 5, app_id: "demo-app-2", action: "restart", created_at: daysAgo(7),  details: null },
   ],
-  "demo-app-3": [],
   "demo-app-4": [
     { id: 7, app_id: "demo-app-4", action: "deploy",  created_at: daysAgo(1),  details: { output: "Already up to date." } },
     { id: 8, app_id: "demo-app-4", action: "restart", created_at: daysAgo(1),  details: null },
