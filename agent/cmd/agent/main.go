@@ -1,7 +1,5 @@
 package main
 
-var version = "dev"
-
 import (
 	"bytes"
 	"encoding/json"
@@ -15,6 +13,8 @@ import (
 	"github.com/vidya381/vm-monitor/agent/internal/config"
 	"github.com/vidya381/vm-monitor/agent/internal/server"
 )
+
+var version = "dev"
 
 func main() {
 	cfgPath := flag.String("config", "/etc/vm-monitor/agent.yaml", "path to agent.yaml")
