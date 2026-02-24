@@ -1,5 +1,7 @@
 package main
 
+var version = "dev"
+
 import (
 	"bytes"
 	"encoding/json"
@@ -25,6 +27,7 @@ func main() {
 	}
 
 	slog.Info("starting vm-monitor agent",
+		"version", version,
 		"vm", cfg.VM.Name,
 		"port", cfg.VM.Port,
 		"apps", len(cfg.Apps),
