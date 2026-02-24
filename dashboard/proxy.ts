@@ -6,6 +6,9 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Demo deployment — no auth required
+  if (process.env.DEMO_MODE === "true") return NextResponse.next();
+
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
