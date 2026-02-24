@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -174,6 +175,82 @@ func (h *Handler) GetAppMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	agentURL := fmt.Sprintf("%s/apps/%s/metrics", app.VMAddress, app.Name)
 	h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
+}
+
+func (h *Handler) DeployApp(w http.ResponseWriter, r *http.Request) {
+	app, ok := h.resolveApp(w, r)
+	if !ok {
+		return
+	}
+	agentURL := fmt.Sprintf("%s/apps/%s/deploy", app.VMAddress, app.Name)
+	h.agent.ProxyRequest(w, r, agentURL, app.VMAuthToken)
+}
+
+func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
+	var req model.CreateAppRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.VMID == "" || req.Name == "" || req.Type == "" {
+		writeError(w, http.StatusBadRequest, "vm_id, name, and type are required")
+		return
+	}
+	if req.Type != "systemd" && req.Type != "docker" {
+		writeError(w, http.StatusBadRequest, "type must be 'systemd' or 'docker'")
+		return
+	}
+
+	vmID, err := uuid.Parse(req.VMID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid vm_id")
+		return
+	}
+	vm, err := h.vms.GetByID(r.Context(), vmID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "vm not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get vm")
+		return
+	}
+
+	appInput := model.AppInput{
+		Name:        req.Name,
+		Type:        req.Type,
+		Environment: req.Environment,
+		Config:      req.Config,
+	}
+	if err := h.apps.Upsert(r.Context(), vmID, appInput); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to register app")
+		return
+	}
+
+	// Notify the agent to add the app to its live config and yaml.
+	if err := h.agent.AddApp(
+		r.Context(), vm.Address, vm.AuthToken,
+		req.Name, req.Type, req.Config.Service, req.Config.Container,
+		req.Environment, req.Config.DeployDir,
+	); err != nil {
+		slog.Warn("failed to notify agent of new app", "vm", vm.Name, "app", req.Name, "error", err)
+		writeError(w, http.StatusBadGateway, "app saved but agent is unreachable — start the agent and it will register on next restart")
+		return
+	}
+
+	app, err := h.apps.GetByVMAndName(r.Context(), vmID, req.Name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "app created but failed to retrieve it")
+		return
+	}
+
+	h.audit.Create(r.Context(), app.ID, "app_registered", map[string]any{
+		"name": app.Name,
+		"type": app.Type,
+		"vm":   vm.Name,
+	})
+
+	writeJSON(w, http.StatusCreated, app)
 }
 
 func (h *Handler) GetAppAudit(w http.ResponseWriter, r *http.Request) {
