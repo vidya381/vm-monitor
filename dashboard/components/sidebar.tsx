@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Monitor } from "lucide-react";
+import { LayoutGrid, Monitor, Plus } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Apps", icon: LayoutGrid },
@@ -36,6 +36,20 @@ export function Sidebar() {
           </Link>
         );
       })}
+
+      <div className="mt-2 pt-2 border-t border-border">
+        <Link
+          href="/apps/new"
+          className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+            pathname === "/apps/new"
+              ? "text-text-primary bg-surface-raised border-l-2 border-accent pl-[10px]"
+              : "text-text-muted hover:text-text-primary hover:bg-surface-raised"
+          }`}
+        >
+          <Plus size={16} className={pathname === "/apps/new" ? "text-accent" : ""} />
+          Register App
+        </Link>
+      </div>
     </aside>
   );
 }

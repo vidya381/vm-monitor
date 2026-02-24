@@ -8,3 +8,12 @@ export async function GET(req: Request) {
   const data = await serverFetch(path);
   return NextResponse.json(data);
 }
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const data = await serverFetch("/apps", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return NextResponse.json(data, { status: 201 });
+}

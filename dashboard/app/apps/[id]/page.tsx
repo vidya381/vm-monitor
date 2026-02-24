@@ -5,7 +5,7 @@ import { AppStatusBadge } from "@/components/status-badge";
 import { LogViewer } from "@/components/log-viewer";
 import { EnvTab } from "@/components/env-tab";
 import { AuditTab } from "@/components/audit-tab";
-import { App, Metrics } from "@/lib/types";
+import { App, Metrics, DeployResult } from "@/lib/types";
 
 function timeAgo(iso?: string) {
   if (!iso) return "never";
@@ -35,6 +35,8 @@ export default function AppDetailPage({
   const [confirmRestart, setConfirmRestart] = useState(false);
   const [restartMsg, setRestartMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [deploying, setDeploying] = useState(false);
+  const [deployResult, setDeployResult] = useState<DeployResult | null>(null);
 
   const fetchApp = useCallback(() => {
     fetch(`/api/apps/${id}`)
@@ -75,6 +77,21 @@ export default function AppDetailPage({
     } finally {
       setRestarting(false);
       setTimeout(() => setRestartMsg(null), 4000);
+    }
+  }
+
+  async function handleDeploy() {
+    setDeploying(true);
+    setDeployResult(null);
+    try {
+      const res = await fetch(`/api/apps/${id}/deploy`, { method: "POST" });
+      const data: DeployResult = await res.json();
+      setDeployResult(data);
+      if (data.success) setTimeout(fetchApp, 2000);
+    } catch {
+      setDeployResult({ success: false, output: "", error: "Request failed. Check agent connection." });
+    } finally {
+      setDeploying(false);
     }
   }
 
@@ -147,6 +164,7 @@ export default function AppDetailPage({
               <Row label="VM" value={app.vm_name} />
               <Row label="Type" value={app.type} />
               <Row label="Environment" value={app.environment || "—"} />
+              <Row label="Deploy dir" value={app.config?.deploy_dir || "—"} />
               <Row label="Status" value={<AppStatusBadge status={app.last_status} />} />
               <Row label="Last checked" value={timeAgo(app.last_checked_at)} />
               <Row label="Last restarted" value={timeAgo(app.last_restarted_at)} />
@@ -156,8 +174,8 @@ export default function AppDetailPage({
               <Row label="PID" value={metrics ? String(metrics.pid) : "—"} />
             </div>
 
-            {/* Restart action */}
-            <div className="flex items-center gap-3">
+            {/* Actions */}
+            <div className="flex flex-wrap items-center gap-3">
               {confirmRestart ? (
                 <>
                   <span className="text-sm text-text-secondary">
@@ -186,7 +204,37 @@ export default function AppDetailPage({
                   {restarting ? "Restarting..." : "Restart App"}
                 </button>
               )}
+
+              {app.config?.deploy_dir && (
+                <button
+                  onClick={handleDeploy}
+                  disabled={deploying}
+                  className="bg-transparent hover:bg-surface-raised text-text-primary border border-border hover:border-border-subtle text-sm font-medium px-4 py-2 rounded-md transition-colors disabled:opacity-50"
+                >
+                  {deploying ? "Deploying..." : "Deploy (git pull)"}
+                </button>
+              )}
             </div>
+
+            {/* Deploy output */}
+            {deployResult && (
+              <div className={`rounded-lg border text-sm ${deployResult.success ? "border-status-running/30" : "border-danger/30"}`}>
+                <div className={`flex items-center gap-2 px-4 py-2 border-b ${deployResult.success ? "border-status-running/20" : "border-danger/20"}`}>
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${deployResult.success ? "bg-status-running" : "bg-danger"}`} />
+                  <span className="text-text-primary font-medium">
+                    {deployResult.success ? "Deployed successfully" : "Deploy failed"}
+                  </span>
+                  {deployResult.error && (
+                    <span className="text-text-muted ml-1">— {deployResult.error}</span>
+                  )}
+                </div>
+                {deployResult.output && (
+                  <pre className="px-4 py-3 text-xs text-text-secondary font-mono whitespace-pre-wrap overflow-x-auto bg-background rounded-b-lg">
+                    {deployResult.output}
+                  </pre>
+                )}
+              </div>
+            )}
           </div>
         )}
 
