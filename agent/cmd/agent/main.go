@@ -14,6 +14,8 @@ import (
 	"github.com/vidya381/vm-monitor/agent/internal/server"
 )
 
+var version = "dev"
+
 func main() {
 	cfgPath := flag.String("config", "/etc/vm-monitor/agent.yaml", "path to agent.yaml")
 	flag.Parse()
@@ -25,6 +27,7 @@ func main() {
 	}
 
 	slog.Info("starting vm-monitor agent",
+		"version", version,
 		"vm", cfg.VM.Name,
 		"port", cfg.VM.Port,
 		"apps", len(cfg.Apps),
