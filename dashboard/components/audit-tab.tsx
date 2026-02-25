@@ -73,12 +73,12 @@ export function AuditTab({ appId }: { appId: string }) {
   return (
     <div className="rounded-lg border border-border divide-y divide-border">
       {logs.map((log) => (
-        <div key={log.id} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-raised transition-colors">
-          <span className="text-xs text-text-muted w-24 shrink-0" title={log.created_at}>
+        <div key={log.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-surface-raised transition-colors">
+          <span className="text-xs text-text-muted shrink-0 min-w-[52px]" title={log.created_at}>
             {timeAgo(log.created_at)}
           </span>
           <ActionBadge action={log.action} />
-          <span className="text-xs text-text-muted flex-1">
+          <span className="text-xs text-text-muted">
             {formatDetails(log.details)}
           </span>
         </div>

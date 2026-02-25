@@ -106,7 +106,7 @@ export function LogViewer({ appId }: { appId: string }) {
         </button>
       </div>
 
-      <div className="bg-background border border-border rounded-lg font-mono text-xs text-text-secondary h-96 overflow-y-auto p-4 space-y-0.5">
+      <div className="bg-background border border-border rounded-lg font-mono text-xs text-text-secondary h-64 sm:h-96 overflow-y-auto p-4 space-y-0.5">
         {loading && <p className="text-text-muted">Loading logs...</p>}
         {error && <p className="text-status-stopped">Cannot load logs. Check agent connection.</p>}
         {!loading && !error && filtered.length === 0 && (

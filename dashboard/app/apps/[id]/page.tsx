@@ -145,15 +145,15 @@ export default function AppDetailPage({
 
       {/* Tabs */}
       <div className="border-b border-border">
-        <div className="flex gap-6">
+        <div className="flex gap-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={
                 activeTab === tab
-                  ? "pb-3 text-sm border-b-2 border-accent text-text-primary -mb-px"
-                  : "pb-3 text-sm text-text-muted hover:text-text-secondary transition-colors"
+                  ? "pb-3 text-sm border-b-2 border-accent text-text-primary -mb-px whitespace-nowrap shrink-0"
+                  : "pb-3 text-sm text-text-muted hover:text-text-secondary transition-colors whitespace-nowrap shrink-0"
               }
             >
               {tab}
@@ -281,7 +281,7 @@ export default function AppDetailPage({
                   <div className="rounded-lg border border-border divide-y divide-border">
                     {uptime.incidents.map((inc, i) => (
                       <div key={i} className="flex items-center gap-4 px-4 py-3 text-sm">
-                        <span className="text-xs text-text-muted w-36 shrink-0">{formatDate(inc.started_at)}</span>
+                        <span className="text-xs text-text-muted w-24 sm:w-36 shrink-0">{formatDate(inc.started_at)}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-md font-mono border ${inc.status === "stopped" ? "text-status-stopped border-status-stopped/30 bg-surface" : "text-status-unhealthy border-status-unhealthy/30 bg-surface"}`}>
                           {inc.status}
                         </span>
@@ -305,9 +305,9 @@ export default function AppDetailPage({
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 text-sm">
-      <span className="text-text-muted">{label}</span>
-      <span className="text-text-primary font-medium">{value}</span>
+    <div className="flex items-start justify-between gap-3 px-4 py-3 text-sm">
+      <span className="text-text-muted shrink-0">{label}</span>
+      <span className="text-text-primary font-medium text-right break-all min-w-0">{value}</span>
     </div>
   );
 }

@@ -59,14 +59,14 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">Apps</h1>
           <p className="text-sm text-text-secondary">
             {apps.length} app{apps.length !== 1 ? "s" : ""} across all VMs
           </p>
         </div>
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-text-muted shrink-0">
           Checked {lastRefresh.toLocaleTimeString()}
         </p>
       </div>

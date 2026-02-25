@@ -106,11 +106,11 @@ export default function VMDetailPage({ params }: { params: Promise<{ id: string 
 
       {/* System Metrics */}
       {sysMetrics && (
-        <div className="rounded-lg border border-border divide-y divide-border">
-          <div className="px-4 py-3">
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
             <p className="text-xs font-medium text-text-muted uppercase tracking-wide">System Metrics</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-border">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-border">
             <MetricCell label="Memory Used" value={`${sysMetrics.mem_used_mb} MB`} sub={`of ${sysMetrics.mem_total_mb} MB`} />
             <MetricCell label="Load Avg" value={String(sysMetrics.load_avg_1)} sub={`5m ${sysMetrics.load_avg_5} · 15m ${sysMetrics.load_avg_15}`} />
             <MetricCell label="Uptime" value={formatUptime(sysMetrics.uptime_seconds)} />
@@ -143,7 +143,7 @@ export default function VMDetailPage({ params }: { params: Promise<{ id: string 
 
 function MetricCell({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="px-4 py-3">
+    <div className="bg-surface px-4 py-3">
       <p className="text-xs text-text-muted mb-1">{label}</p>
       <p className="text-sm font-medium text-text-primary">{value}</p>
       {sub && <p className="text-xs text-text-muted mt-0.5">{sub}</p>}

@@ -22,9 +22,9 @@ export function AppCard({ app, uptimePct }: { app: App; uptimePct?: number | nul
           <AppStatusBadge status={app.last_status} />
         </div>
         <p className="text-sm text-text-secondary mb-4">{app.vm_name}</p>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-xs text-text-muted">{app.type}</span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             {uptimePct != null && (
               <span className={`text-xs font-medium ${uptimePct >= 99 ? "text-status-running" : uptimePct >= 95 ? "text-warning" : "text-danger"}`}>
                 {uptimePct}% · 30d

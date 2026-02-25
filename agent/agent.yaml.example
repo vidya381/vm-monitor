@@ -24,10 +24,3 @@ apps:
       type: "http"
       url: "http://localhost:8080/api/health"
 
-  - name: "badminton-bot"
-    type: "systemd"
-    service: "badminton-bot.service"
-    env_file: "/opt/badminton-bot/.env"
-    health_check:
-      type: "command"
-      cmd: "pgrep -f badminton-bot"

@@ -223,7 +223,7 @@ export function EnvTab({ appId }: Props) {
       )}
 
       {/* Header row */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
         <span className="text-sm text-text-muted">{keys.length} variables</span>
         {!editMode ? (
           <button
@@ -233,7 +233,7 @@ export function EnvTab({ appId }: Props) {
             Edit
           </button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={cancelEdit}
               className="bg-transparent hover:bg-surface-raised text-text-secondary hover:text-text-primary border border-border text-sm font-medium px-4 py-2 rounded-md transition-colors"
@@ -245,7 +245,7 @@ export function EnvTab({ appId }: Props) {
               disabled={changedKeys.length === 0}
               className="bg-transparent hover:bg-surface-raised text-text-secondary hover:text-text-primary border border-border text-sm font-medium px-4 py-2 rounded-md transition-colors disabled:opacity-40"
             >
-              Preview Changes
+              Preview
             </button>
             <button
               onClick={() => save(false)}
@@ -278,42 +278,44 @@ export function EnvTab({ appId }: Props) {
             return (
               <div
                 key={key}
-                className="flex items-center border-b border-border last:border-0 hover:bg-surface-raised transition-colors px-4 py-3"
+                className="flex flex-col gap-1 sm:flex-row sm:items-center border-b border-border last:border-0 hover:bg-surface-raised transition-colors px-4 py-3"
               >
-                <span className="font-mono text-sm text-text-primary w-56 shrink-0">
+                <span className="font-mono text-xs text-text-muted sm:text-sm sm:text-text-primary sm:w-44 sm:shrink-0">
                   {key}
                 </span>
-                {editMode ? (
-                  <input
-                    type={entry.masked ? "password" : "text"}
-                    value={edits[key] ?? ""}
-                    placeholder={entry.masked ? "leave blank to keep current" : undefined}
-                    onChange={(e) => setEdits((p) => ({ ...p, [key]: e.target.value }))}
-                    className="flex-1 bg-background border border-border hover:border-border-subtle focus:border-accent rounded-md px-3 py-1 text-sm text-text-primary outline-none transition-colors font-mono"
-                  />
-                ) : (
-                  <span className="font-mono text-sm text-text-secondary flex-1">
-                    {entry.masked
-                      ? isRevealed
-                        ? entry.value
-                        : "- - - - - - - -"
-                      : entry.value}
-                  </span>
-                )}
-                {entry.masked && !editMode && (
-                  <button
-                    onClick={() =>
-                      setRevealed((prev) => {
-                        const next = new Set(prev);
-                        next.has(key) ? next.delete(key) : next.add(key);
-                        return next;
-                      })
-                    }
-                    className="text-xs text-text-muted hover:text-accent transition-colors ml-3"
-                  >
-                    {isRevealed ? "hide" : "reveal"}
-                  </button>
-                )}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {editMode ? (
+                    <input
+                      type={entry.masked ? "password" : "text"}
+                      value={edits[key] ?? ""}
+                      placeholder={entry.masked ? "leave blank to keep current" : undefined}
+                      onChange={(e) => setEdits((p) => ({ ...p, [key]: e.target.value }))}
+                      className="flex-1 min-w-0 bg-background border border-border hover:border-border-subtle focus:border-accent rounded-md px-3 py-1 text-sm text-text-primary outline-none transition-colors font-mono"
+                    />
+                  ) : (
+                    <span className="font-mono text-sm text-text-secondary flex-1 break-all">
+                      {entry.masked
+                        ? isRevealed
+                          ? entry.value
+                          : "- - - - - - - -"
+                        : entry.value}
+                    </span>
+                  )}
+                  {entry.masked && !editMode && (
+                    <button
+                      onClick={() =>
+                        setRevealed((prev) => {
+                          const next = new Set(prev);
+                          next.has(key) ? next.delete(key) : next.add(key);
+                          return next;
+                        })
+                      }
+                      className="text-xs text-text-muted hover:text-accent transition-colors shrink-0"
+                    >
+                      {isRevealed ? "hide" : "reveal"}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
