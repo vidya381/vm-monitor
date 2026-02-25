@@ -20,8 +20,8 @@ const (
 
 // incident tracks an ongoing outage for one app.
 type incident struct {
-	firing  bool
-	since   time.Time
+	firing bool
+	since  time.Time
 }
 
 // restartTracker tracks consecutive auto-restart attempts for flap protection.
@@ -32,7 +32,7 @@ type restartTracker struct {
 
 // Start launches a background goroutine that polls every registered agent on
 // the given interval, updating VM status and app last_status in the database.
-func Start(ctx context.Context, vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, client *agentclient.Client, notifier *notify.Notifier, interval time.Duration) {
+func Start(ctx context.Context, vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, history *db.StatusHistoryStore, client *agentclient.Client, notifier *notify.Notifier, interval time.Duration) {
 	incidents := make(map[uuid.UUID]*incident)
 	restarts := make(map[uuid.UUID]*restartTracker)
 	var mu sync.Mutex
@@ -45,13 +45,13 @@ func Start(ctx context.Context, vms *db.VMStore, apps *db.AppStore, audit *db.Au
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				poll(ctx, vms, apps, audit, client, notifier, incidents, restarts, &mu)
+				poll(ctx, vms, apps, audit, history, client, notifier, incidents, restarts, &mu)
 			}
 		}
 	}()
 }
 
-func poll(ctx context.Context, vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, client *agentclient.Client, notifier *notify.Notifier, incidents map[uuid.UUID]*incident, restarts map[uuid.UUID]*restartTracker, mu *sync.Mutex) {
+func poll(ctx context.Context, vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, history *db.StatusHistoryStore, client *agentclient.Client, notifier *notify.Notifier, incidents map[uuid.UUID]*incident, restarts map[uuid.UUID]*restartTracker, mu *sync.Mutex) {
 	allVMs, err := vms.GetAll(ctx)
 	if err != nil {
 		slog.Error("poller: failed to list VMs", "error", err)
@@ -63,13 +63,13 @@ func poll(ctx context.Context, vms *db.VMStore, apps *db.AppStore, audit *db.Aud
 		wg.Add(1)
 		go func(v model.VM) {
 			defer wg.Done()
-			pollVM(ctx, v, vms, apps, audit, client, notifier, incidents, restarts, mu)
+			pollVM(ctx, v, vms, apps, audit, history, client, notifier, incidents, restarts, mu)
 		}(vm)
 	}
 	wg.Wait()
 }
 
-func pollVM(ctx context.Context, vm model.VM, vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, client *agentclient.Client, notifier *notify.Notifier, incidents map[uuid.UUID]*incident, restarts map[uuid.UUID]*restartTracker, mu *sync.Mutex) {
+func pollVM(ctx context.Context, vm model.VM, vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, history *db.StatusHistoryStore, client *agentclient.Client, notifier *notify.Notifier, incidents map[uuid.UUID]*incident, restarts map[uuid.UUID]*restartTracker, mu *sync.Mutex) {
 	pollCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
@@ -84,13 +84,22 @@ func pollVM(ctx context.Context, vm model.VM, vms *db.VMStore, apps *db.AppStore
 	vms.UpdateStatus(pollCtx, vm.ID, "online", now)
 
 	for _, a := range agentApps {
+		// Fetch current state before updating, to detect status transitions.
+		app, err := apps.GetByVMAndName(pollCtx, vm.ID, a.Name)
+		if err != nil {
+			slog.Warn("poller: app not found in db", "vm", vm.Name, "app", a.Name, "error", err)
+			continue
+		}
+
+		oldStatus := app.LastStatus
 		if err := apps.UpdateStatus(pollCtx, vm.ID, a.Name, a.Status, now); err != nil {
 			slog.Warn("poller: failed to update app status", "vm", vm.Name, "app", a.Name, "error", err)
 		}
 
-		app, err := apps.GetByVMAndName(pollCtx, vm.ID, a.Name)
-		if err != nil {
-			continue
+		if oldStatus != a.Status {
+			if err := history.RecordTransition(pollCtx, app.ID, a.Status); err != nil {
+				slog.Warn("poller: failed to record status transition", "app", a.Name, "error", err)
+			}
 		}
 
 		isDown := a.Status != "running"
