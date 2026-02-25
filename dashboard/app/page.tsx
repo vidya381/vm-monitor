@@ -9,14 +9,31 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [uptimes, setUptimes] = useState<Record<string, number | null>>({});
 
   const fetchApps = async () => {
     try {
       const res = await fetch("/api/apps");
       if (!res.ok) throw new Error(`status ${res.status}`);
-      setApps(await res.json());
+      const data: App[] = await res.json();
+      setApps(data);
       setLastRefresh(new Date());
       setError("");
+
+      // Fetch uptime for each app in parallel (best-effort).
+      const results = await Promise.all(
+        data.map(async (app) => {
+          try {
+            const r = await fetch(`/api/apps/${app.id}/uptime?days=30`);
+            if (!r.ok) return [app.id, null] as const;
+            const u = await r.json();
+            return [app.id, u?.uptime_pct ?? null] as const;
+          } catch {
+            return [app.id, null] as const;
+          }
+        })
+      );
+      setUptimes(Object.fromEntries(results));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -71,7 +88,7 @@ export default function OverviewPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {apps.map((app) => (
-            <AppCard key={app.id} app={app} />
+            <AppCard key={app.id} app={app} uptimePct={uptimes[app.id]} />
           ))}
         </div>
       )}

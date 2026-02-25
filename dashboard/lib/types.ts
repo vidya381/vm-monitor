@@ -73,6 +73,22 @@ export interface SystemMetrics {
   sampled_at: string;
 }
 
+export interface Incident {
+  status: string;
+  started_at: string;
+  ended_at: string;
+  duration_s: number;
+}
+
+export interface UptimeResponse {
+  app_id: string;
+  window_days: number;
+  uptime_pct: number | null;
+  total_downtime_s: number;
+  incident_count: number;
+  incidents: Incident[];
+}
+
 export interface AuditLog {
   id: number;
   app_id: string | null;

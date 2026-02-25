@@ -5,7 +5,22 @@ import { AppStatusBadge } from "@/components/status-badge";
 import { LogViewer } from "@/components/log-viewer";
 import { EnvTab } from "@/components/env-tab";
 import { AuditTab } from "@/components/audit-tab";
-import { App, Metrics, DeployResult } from "@/lib/types";
+import { App, Metrics, DeployResult, UptimeResponse } from "@/lib/types";
+
+function formatDowntime(s: number): string {
+  if (s < 60) return `${s}s`;
+  const mins = Math.floor(s / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
 
 function timeAgo(iso?: string) {
   if (!iso) return "never";
@@ -37,6 +52,7 @@ export default function AppDetailPage({
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [deploying, setDeploying] = useState(false);
   const [deployResult, setDeployResult] = useState<DeployResult | null>(null);
+  const [uptime, setUptime] = useState<UptimeResponse | null>(null);
 
   const fetchApp = useCallback(() => {
     fetch(`/api/apps/${id}`)
@@ -60,6 +76,14 @@ export default function AppDetailPage({
     load();
     const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
+  }, [id, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "Status") return;
+    fetch(`/api/apps/${id}/uptime?days=30`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setUptime)
+      .catch(() => setUptime(null));
   }, [id, activeTab]);
 
   async function handleRestart() {
@@ -232,6 +256,39 @@ export default function AppDetailPage({
                   <pre className="px-4 py-3 text-xs text-text-secondary font-mono whitespace-pre-wrap overflow-x-auto bg-background rounded-b-lg">
                     {deployResult.output}
                   </pre>
+                )}
+              </div>
+            )}
+
+            {/* Uptime */}
+            {uptime?.uptime_pct != null && (
+              <div className="space-y-2">
+                <div className="rounded-lg border border-border p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-text-primary mb-1">Uptime (last 30 days)</p>
+                    <p className="text-xs text-text-muted">
+                      downtime: {formatDowntime(uptime.total_downtime_s)}
+                      {" · "}
+                      incidents: {uptime.incident_count}
+                    </p>
+                  </div>
+                  <span className={`text-2xl font-semibold ${uptime.uptime_pct >= 99 ? "text-status-running" : uptime.uptime_pct >= 95 ? "text-warning" : "text-danger"}`}>
+                    {uptime.uptime_pct}%
+                  </span>
+                </div>
+
+                {uptime.incidents.length > 0 && (
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    {uptime.incidents.map((inc, i) => (
+                      <div key={i} className="flex items-center gap-4 px-4 py-3 text-sm">
+                        <span className="text-xs text-text-muted w-36 shrink-0">{formatDate(inc.started_at)}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-md font-mono border ${inc.status === "stopped" ? "text-status-stopped border-status-stopped/30 bg-surface" : "text-status-unhealthy border-status-unhealthy/30 bg-surface"}`}>
+                          {inc.status}
+                        </span>
+                        <span className="text-xs text-text-muted ml-auto">{formatDowntime(inc.duration_s)}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

@@ -13,7 +13,7 @@ function timeAgo(iso?: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export function AppCard({ app }: { app: App }) {
+export function AppCard({ app, uptimePct }: { app: App; uptimePct?: number | null }) {
   return (
     <Link href={`/apps/${app.id}`}>
       <div className="bg-surface border border-border rounded-lg p-4 hover:border-border-subtle hover:bg-surface-raised transition-colors cursor-pointer">
@@ -24,7 +24,14 @@ export function AppCard({ app }: { app: App }) {
         <p className="text-sm text-text-secondary mb-4">{app.vm_name}</p>
         <div className="flex items-center justify-between">
           <span className="text-xs text-text-muted">{app.type}</span>
-          <span className="text-xs text-text-muted">checked {timeAgo(app.last_checked_at)}</span>
+          <div className="flex items-center gap-3">
+            {uptimePct != null && (
+              <span className={`text-xs font-medium ${uptimePct >= 99 ? "text-status-running" : uptimePct >= 95 ? "text-warning" : "text-danger"}`}>
+                {uptimePct}% · 30d
+              </span>
+            )}
+            <span className="text-xs text-text-muted">checked {timeAgo(app.last_checked_at)}</span>
+          </div>
         </div>
       </div>
     </Link>

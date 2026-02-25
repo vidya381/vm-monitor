@@ -143,6 +143,42 @@ export const demoEnvVars: Record<string, object> = {
 
 // --- Audit ---
 
+// --- Uptime ---
+
+export const demoUptime: Record<string, object> = {
+  "demo-app-1": {
+    app_id: "demo-app-1",
+    window_days: 30,
+    uptime_pct: 99.2,
+    total_downtime_s: 13320,
+    incident_count: 2,
+    incidents: [
+      { status: "stopped",   started_at: daysAgo(2), ended_at: new Date(Date.now() - 2 * 86_400_000 + 7800 * 1000).toISOString(), duration_s: 7800 },
+      { status: "unhealthy", started_at: daysAgo(6), ended_at: new Date(Date.now() - 6 * 86_400_000 + 5520 * 1000).toISOString(), duration_s: 5520 },
+    ],
+  },
+  "demo-app-2": {
+    app_id: "demo-app-2",
+    window_days: 30,
+    uptime_pct: 100.0,
+    total_downtime_s: 0,
+    incident_count: 0,
+    incidents: [],
+  },
+  "demo-app-4": {
+    app_id: "demo-app-4",
+    window_days: 30,
+    uptime_pct: 99.8,
+    total_downtime_s: 5184,
+    incident_count: 1,
+    incidents: [
+      { status: "stopped", started_at: daysAgo(1), ended_at: new Date(Date.now() - 1 * 86_400_000 + 5184 * 1000).toISOString(), duration_s: 5184 },
+    ],
+  },
+};
+
+// --- Audit ---
+
 export const demoAudit: Record<string, object[]> = {
   "demo-app-1": [
     { id: 4, app_id: "demo-app-1", action: "deploy",     created_at: daysAgo(1),  details: { output: "Already up to date." } },
