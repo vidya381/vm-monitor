@@ -194,7 +194,7 @@ export default function AppDetailPage({
               <Row label="Last restarted" value={timeAgo(app.last_restarted_at)} />
               <Row label="CPU" value={metrics ? `${metrics.cpu_percent}%` : "—"} />
               <Row label="Memory (RSS)" value={metrics ? `${metrics.mem_rss_mb} MB` : "—"} />
-              <Row label="Peak Memory" value={metrics ? `${metrics.vm_peak_mb} MB` : "—"} />
+              <Row label="Peak Virtual" value={metrics ? `${metrics.vm_peak_mb} MB` : "—"} />
               <Row label="PID" value={metrics ? String(metrics.pid) : "—"} />
             </div>
 
