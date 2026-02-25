@@ -48,12 +48,14 @@ func main() {
 	vms := db.NewVMStore(pool)
 	apps := db.NewAppStore(pool)
 	audit := db.NewAuditStore(pool)
+	history := db.NewStatusHistoryStore(pool)
 	agent := agentclient.New()
 	notifier := notify.New(notifyURL, notifyType)
 
-	h := handler.New(vms, apps, audit, agent)
+	h := handler.New(vms, apps, audit, history, agent)
 
-	poller.Start(ctx, vms, apps, audit, agent, notifier, 30*time.Second)
+	poller.Start(ctx, vms, apps, audit, history, agent, notifier, 30*time.Second)
+	poller.StartPurgeJob(ctx, history)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{allowedOrigins},
@@ -91,6 +93,7 @@ func main() {
 		r.Post("/apps/{id}/deploy", h.DeployApp)
 		r.Get("/apps/{id}/audit", h.GetAppAudit)
 		r.Get("/apps/{id}/metrics", h.GetAppMetrics)
+		r.Get("/apps/{id}/uptime", h.GetAppUptime)
 
 		r.Get("/audit", h.ListAudit)
 	})

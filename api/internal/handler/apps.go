@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -251,6 +252,28 @@ func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
 	})
 
 	writeJSON(w, http.StatusCreated, app)
+}
+
+func (h *Handler) GetAppUptime(w http.ResponseWriter, r *http.Request) {
+	app, ok := h.resolveApp(w, r)
+	if !ok {
+		return
+	}
+
+	days := 30
+	if d := r.URL.Query().Get("days"); d != "" {
+		if n, err := strconv.Atoi(d); err == nil && n > 0 {
+			days = n
+		}
+	}
+
+	windowStart := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	result, err := h.history.GetUptimeResponse(r.Context(), app.ID, windowStart, days)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get uptime")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (h *Handler) GetAppAudit(w http.ResponseWriter, r *http.Request) {

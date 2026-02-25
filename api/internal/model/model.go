@@ -67,6 +67,22 @@ type AuditLog struct {
 	CreatedAt time.Time      `json:"created_at"`
 }
 
+type UptimeResponse struct {
+	AppID          string     `json:"app_id"`
+	WindowDays     int        `json:"window_days"`
+	UptimePct      *float64   `json:"uptime_pct"` // nil = no history yet
+	TotalDowntimeS int        `json:"total_downtime_s"`
+	IncidentCount  int        `json:"incident_count"`
+	Incidents      []Incident `json:"incidents"`
+}
+
+type Incident struct {
+	Status    string    `json:"status"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
+	DurationS int       `json:"duration_s"`
+}
+
 // RegisterRequest is the payload the agent sends on startup.
 type RegisterRequest struct {
 	Name      string      `json:"name"`

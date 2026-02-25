@@ -9,14 +9,15 @@ import (
 )
 
 type Handler struct {
-	vms    *db.VMStore
-	apps   *db.AppStore
-	audit  *db.AuditStore
-	agent  *agentclient.Client
+	vms     *db.VMStore
+	apps    *db.AppStore
+	audit   *db.AuditStore
+	history *db.StatusHistoryStore
+	agent   *agentclient.Client
 }
 
-func New(vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, agent *agentclient.Client) *Handler {
-	return &Handler{vms: vms, apps: apps, audit: audit, agent: agent}
+func New(vms *db.VMStore, apps *db.AppStore, audit *db.AuditStore, history *db.StatusHistoryStore, agent *agentclient.Client) *Handler {
+	return &Handler{vms: vms, apps: apps, audit: audit, history: history, agent: agent}
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {

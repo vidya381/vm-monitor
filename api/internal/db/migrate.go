@@ -43,6 +43,18 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		  details    JSONB,
 		  created_at TIMESTAMPTZ DEFAULT NOW()
 		);
+
+		CREATE TABLE IF NOT EXISTS status_history (
+		  id         BIGSERIAL PRIMARY KEY,
+		  app_id     UUID REFERENCES apps(id) ON DELETE CASCADE,
+		  status     VARCHAR(50) NOT NULL,
+		  started_at TIMESTAMPTZ NOT NULL,
+		  ended_at   TIMESTAMPTZ,
+		  duration_s INTEGER
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_status_history_app_id    ON status_history(app_id);
+		CREATE INDEX IF NOT EXISTS idx_status_history_started_at ON status_history(started_at);
 	`)
 	if err != nil {
 		return fmt.Errorf("running migrations: %w", err)
