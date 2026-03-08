@@ -2,6 +2,8 @@ package env
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -125,6 +127,49 @@ func TestWrite_AtomicAndReadback(t *testing.T) {
 	}
 }
 
+func TestWrite_PreservesCommentsAndOrder(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/.env"
+
+	original := "# Top comment\nFOO=old\n\n# Section\nBAR=old\nBAZ=keep\n"
+	if err := os.WriteFile(path, []byte(original), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Write(path, map[string]string{"FOO": "new", "BAR": "new", "BAZ": "keep"}); err != nil {
+		t.Fatalf("Write error: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+
+	// Comments and blank lines must be present.
+	if !strings.Contains(content, "# Top comment") {
+		t.Error("top comment missing")
+	}
+	if !strings.Contains(content, "# Section") {
+		t.Error("section comment missing")
+	}
+
+	// Updated values must be written.
+	if !strings.Contains(content, "FOO=new") {
+		t.Error("FOO value not updated")
+	}
+	if !strings.Contains(content, "BAR=new") {
+		t.Error("BAR value not updated")
+	}
+
+	// Original order must be preserved: FOO before BAR.
+	fooIdx := strings.Index(content, "FOO=")
+	barIdx := strings.Index(content, "BAR=")
+	if fooIdx > barIdx {
+		t.Error("key order not preserved")
+	}
+}
+
 func TestWrite_CreatesBackup(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/.env"
@@ -136,15 +181,9 @@ func TestWrite_CreatesBackup(t *testing.T) {
 		t.Fatalf("Write error: %v", err)
 	}
 
-	// A backup file should exist
-	entries, _ := os.ReadDir(dir)
-	hasBackup := false
-	for _, e := range entries {
-		if len(e.Name()) > 11 && e.Name()[:11] == ".env.backup" {
-			hasBackup = true
-		}
-	}
-	if !hasBackup {
-		t.Error("expected backup file to be created")
+	// A backup file should exist inside .env-backups/
+	entries, _ := os.ReadDir(filepath.Join(dir, ".env-backups"))
+	if len(entries) == 0 {
+		t.Error("expected backup file to be created in .env-backups/")
 	}
 }

@@ -5,7 +5,9 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -94,28 +96,81 @@ func Parse(path string) (map[string]EnvVar, error) {
 	return result, scanner.Err()
 }
 
-// Write atomically writes key=value pairs to path.
-// Steps: backup → write to .tmp → rename .tmp to path.
+// Write atomically writes key=value pairs to path, preserving the original
+// file's comments, blank lines, and key order.
+// Steps: capture metadata → backup → build output → write .tmp → rename .tmp to path → restore ownership.
 func Write(path string, vars map[string]string) error {
-	// 1. Backup
-	backup := fmt.Sprintf("%s.backup.%d", path, time.Now().Unix())
+	// 1. Capture original file permissions and ownership before touching anything.
+	var mode os.FileMode = 0600
+	var uid, gid int = -1, -1
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+		if st, ok := info.Sys().(*syscall.Stat_t); ok {
+			uid = int(st.Uid)
+			gid = int(st.Gid)
+		}
+	}
+
+	// 2. Backup into a dedicated .env-backups/ subdirectory next to the file.
+	backupDir := filepath.Join(filepath.Dir(path), ".env-backups")
+	if err := os.MkdirAll(backupDir, 0700); err != nil {
+		return fmt.Errorf("creating backup dir: %w", err)
+	}
+	backup := filepath.Join(backupDir, fmt.Sprintf("%s.%d", filepath.Base(path), time.Now().Unix()))
 	if err := copyFile(path, backup); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("backing up env file: %w", err)
 	}
 
-	// 2. Write to temp file
+	// 3. Build output lines, preserving the structure of the original file
+	// (comments, blank lines, key order). Only the values are updated.
+	var outLines []string
+	written := make(map[string]bool)
+
+	if orig, err := os.Open(path); err == nil {
+		scanner := bufio.NewScanner(orig)
+		for scanner.Scan() {
+			line := scanner.Text()
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				outLines = append(outLines, line)
+				continue
+			}
+			key, _, ok := strings.Cut(trimmed, "=")
+			if !ok {
+				outLines = append(outLines, line)
+				continue
+			}
+			key = strings.TrimSpace(key)
+			written[key] = true
+			if newVal, exists := vars[key]; exists {
+				outLines = append(outLines, fmt.Sprintf("%s=%s", key, newVal))
+			} else {
+				outLines = append(outLines, line)
+			}
+		}
+		orig.Close()
+	}
+
+	// Append any brand-new keys not present in the original file.
+	for k, v := range vars {
+		if !written[k] {
+			outLines = append(outLines, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+
+	// 4. Write to temp file using original permissions.
 	tmp := path + ".tmp"
-	f, err := os.Create(tmp)
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {
 		return fmt.Errorf("creating temp file: %w", err)
 	}
 
 	w := bufio.NewWriter(f)
-	for k, v := range vars {
-		if _, err := fmt.Fprintf(w, "%s=%s\n", k, v); err != nil {
+	for _, line := range outLines {
+		if _, err := fmt.Fprintln(w, line); err != nil {
 			f.Close()
 			os.Remove(tmp)
-			return fmt.Errorf("writing env var: %w", err)
+			return fmt.Errorf("writing line: %w", err)
 		}
 	}
 	if err := w.Flush(); err != nil {
@@ -125,11 +180,17 @@ func Write(path string, vars map[string]string) error {
 	}
 	f.Close()
 
-	// 3. Atomic rename
+	// 5. Atomic rename
 	if err := os.Rename(tmp, path); err != nil {
 		os.Remove(tmp)
 		return fmt.Errorf("renaming temp file: %w", err)
 	}
+
+	// 6. Restore original ownership (best-effort; only fails if agent lacks CAP_CHOWN).
+	if uid >= 0 {
+		_ = os.Chown(path, uid, gid)
+	}
+
 	return nil
 }
 
